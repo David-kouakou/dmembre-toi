@@ -2,7 +2,6 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { productApi } from '../lib/api';
-import { listenActiveUsersCount } from '../lib/userTracking';
 import { 
   TrashIcon, 
   PencilIcon, 
@@ -22,7 +21,6 @@ const Admin = () => {
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [loadingOrders, setLoadingOrders] = useState(true);
   const [error, setError] = useState(null);
-  const [activeUsers, setActiveUsers] = useState(0);
   const [showModal, setShowModal] = useState(false);
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
@@ -40,14 +38,6 @@ const Admin = () => {
     featured: false,
     images: []
   });
-
-  // Écouter le nombre d'utilisateurs connectés
-  useEffect(() => {
-    const unsubscribe = listenActiveUsersCount((count) => {
-      setActiveUsers(count);
-    });
-    return () => unsubscribe();
-  }, []);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -72,13 +62,13 @@ const Admin = () => {
     }
   };
 
-  const fetchOrders = () => {
+  const fetchOrders = async () => {
     try {
-      const savedOrders = localStorage.getItem('orders');
-      if (savedOrders) {
-        const allOrders = JSON.parse(savedOrders);
-        setOrders(allOrders.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
-      }
+      setLoadingOrders(true);
+      // Récupérer les commandes depuis Firestore
+      const response = await fetch('https://dmembre-toi-backend-api.onrender.com/api/v1/orders');
+      const data = await response.json();
+      setOrders(data);
     } catch (error) {
       console.error('Erreur:', error);
     } finally {
@@ -116,13 +106,16 @@ const Admin = () => {
     }
   };
 
-  const updateOrderStatus = (orderId, newStatus) => {
-    const updatedOrders = orders.map(order => 
-      order.id === orderId ? { ...order, status: newStatus } : order
-    );
-    setOrders(updatedOrders);
-    localStorage.setItem('orders', JSON.stringify(updatedOrders));
-    alert(`Statut mis à jour : ${getStatusLabel(newStatus)}`);
+  const updateOrderStatus = async (orderId, newStatus) => {
+    try {
+      await fetch(`https://dmembre-toi-backend-api.onrender.com/api/v1/orders/${orderId}/status?status=${newStatus}`, {
+        method: 'PATCH'
+      });
+      await fetchOrders();
+      alert(`Statut mis à jour : ${getStatusLabel(newStatus)}`);
+    } catch (error) {
+      console.error('Erreur:', error);
+    }
   };
 
   const handleDelete = async (id) => {
@@ -266,7 +259,7 @@ const Admin = () => {
       <div className="max-w-7xl mx-auto px-4">
         <h1 className="text-3xl font-bold mb-8">Dashboard Admin</h1>
         
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-2xl p-6 shadow-sm">
             <p className="text-sm text-gray-500">Total produits</p>
             <p className="text-3xl font-bold">{products.length}</p>
@@ -282,10 +275,6 @@ const Admin = () => {
           <div className="bg-white rounded-2xl p-6 shadow-sm">
             <p className="text-sm text-gray-500">Chiffre d'affaires</p>
             <p className="text-3xl font-bold text-green-600">{Math.round(totalRevenue).toLocaleString('fr-FR')} FCFA</p>
-          </div>
-          <div className="bg-white rounded-2xl p-6 shadow-sm">
-            <p className="text-sm text-gray-500">Utilisateurs en ligne</p>
-            <p className="text-3xl font-bold text-blue-600">{activeUsers}</p>
           </div>
         </div>
 
