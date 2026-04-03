@@ -1,16 +1,26 @@
 const admin = require('firebase-admin');
 
-// Pour Render, on utilise les variables d'environnement
-// Le fichier serviceAccountKey.json ne doit PAS être commité
+// Pour Render : utilise la variable d'environnement
+// Pour le développement local : utilise le fichier JSON
+let serviceAccount;
 
-// Tu devras ajouter la variable d'environnement FIREBASE_SERVICE_ACCOUNT sur Render
-// avec le contenu du fichier JSON
-
-const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+  // En production sur Render
+  serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+} else {
+  // En développement local
+  try {
+    serviceAccount = require('./serviceAccountKey.json');
+  } catch (error) {
+    console.error('❌ Fichier serviceAccountKey.json manquant');
+    console.error('   Copie ton fichier JSON dans backend/config/');
+    process.exit(1);
+  }
+}
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
-  storageBucket: process.env.FIREBASE_STORAGE_BUCKET
+  storageBucket: process.env.FIREBASE_STORAGE_BUCKET || 'dmembre-toi.appspot.com'
 });
 
 const db = admin.firestore();

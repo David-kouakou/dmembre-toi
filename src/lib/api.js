@@ -1,7 +1,10 @@
 import axios from 'axios';
 
-// Force l'URL du backend en ligne
-const API_URL = 'https://dmembre-toi-backend-api.onrender.com/api/v1';
+// URL du backend en production
+export const API_URL = 'https://dmembre-toi-backend-api.onrender.com/api/v1';
+
+// Pour le développement local, décommente la ligne ci-dessous et commente celle du dessus
+// export const API_URL = 'http://localhost:8001/api/v1';
 
 export const api = axios.create({
   baseURL: API_URL,

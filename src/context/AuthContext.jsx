@@ -8,6 +8,7 @@ import {
 } from 'firebase/auth';
 import { auth, googleProvider } from '../lib/firebase';
 import axios from 'axios';
+import { API_URL } from '../lib/api';
 
 const AuthContext = createContext();
 
@@ -21,17 +22,21 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
+      
       if (user) {
         try {
           const token = await user.getIdToken();
-          const response = await axios.post('http://localhost:8001/api/v1/auth/verify-token', { token });
+          const response = await axios.post(`${API_URL}/auth/verify-token`, { token });
           setIsAdmin(response.data.is_admin);
-        } catch (err) {
+          console.log('Rôle admin:', response.data.is_admin);
+        } catch (error) {
+          console.error('Erreur vérification admin:', error);
           setIsAdmin(false);
         }
       } else {
         setIsAdmin(false);
       }
+      
       setLoading(false);
     });
     return unsubscribe;

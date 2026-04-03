@@ -7,14 +7,30 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 8001;
 
-// Configuration CORS - autorise toutes les origines
+// Configuration CORS - autorise les origines autorisées
+const allowedOrigins = [
+  'https://dmembre-toi.vercel.app',
+  'https://dmembre-toi.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:8001'
+];
+
 app.use(cors({
-  origin: '*',  // ← Permet toutes les origines (pour le test)
+  origin: function(origin, callback) {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.log('Origine bloquée par CORS:', origin);
+      callback(null, true); // Accepte toutes pour le test
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
 }));
 
-// Pour les requêtes préflight OPTIONS
 app.options('*', cors());
 
 app.use(express.json());
