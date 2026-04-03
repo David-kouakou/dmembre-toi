@@ -1,49 +1,46 @@
 import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { Link } from 'react-router-dom';
 import { DocumentArrowDownIcon, EyeIcon } from '@heroicons/react/24/outline';
 import { generateInvoicePDF } from '../components/Invoice';
 import { db } from '../lib/firebase';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 
 const Orders = () => {
-  const { user, loading } = useAuth();
-  const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [loadingOrders, setLoadingOrders] = useState(true);
+  const [searchEmail, setSearchEmail] = useState('');
+  const [searched, setSearched] = useState(false);
 
-  useEffect(() => {
-    if (!loading && !user) {
-      navigate('/login?redirect=/orders');
-    }
-  }, [user, loading, navigate]);
-
-  useEffect(() => {
-    const fetchOrders = async () => {
-      if (!user) return;
-      
-      try {
-        setLoadingOrders(true);
-        const q = query(
-          collection(db, 'orders'),
-          where('user_id', '==', user.uid),
-          orderBy('created_at', 'desc')
-        );
-        const querySnapshot = await getDocs(q);
-        const userOrders = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        setOrders(userOrders);
-      } catch (error) {
-        console.error('Erreur chargement commandes:', error);
-      } finally {
-        setLoadingOrders(false);
-      }
-    };
+  const fetchOrders = async (email) => {
+    if (!email) return;
     
-    fetchOrders();
-  }, [user]);
+    try {
+      setLoadingOrders(true);
+      const q = query(
+        collection(db, 'orders'),
+        where('user_email', '==', email),
+        orderBy('created_at', 'desc')
+      );
+      const querySnapshot = await getDocs(q);
+      const userOrders = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setOrders(userOrders);
+      setSearched(true);
+    } catch (error) {
+      console.error('Erreur chargement commandes:', error);
+    } finally {
+      setLoadingOrders(false);
+    }
+  };
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (searchEmail) {
+      fetchOrders(searchEmail);
+    }
+  };
 
   const getStatusLabel = (status) => {
     switch(status) {
@@ -67,102 +64,122 @@ const Orders = () => {
     }
   };
 
-  if (loading || loadingOrders) {
-    return (
-      <div className="pt-32 text-center">
-        <div className="text-lg">Chargement...</div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return null;
-  }
-
-  if (orders.length === 0) {
-    return (
-      <div className="pt-32 pb-20 bg-white min-h-screen">
-        <div className="max-w-4xl mx-auto px-4 text-center">
-          <h1 className="text-3xl font-bold mb-6">Mes commandes</h1>
-          <div className="bg-gray-50 rounded-2xl p-12">
-            <p className="text-gray-500 text-lg mb-6">Vous n'avez pas encore de commandes</p>
-            <Link to="/shop">
-              <button className="bg-black text-white px-8 py-3 rounded-full hover:bg-gray-800">
-                Découvrir nos produits
-              </button>
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // Charger la dernière commande avec l'email sauvegardé
+  useEffect(() => {
+    const lastEmail = localStorage.getItem('lastOrderEmail');
+    if (lastEmail) {
+      setSearchEmail(lastEmail);
+      fetchOrders(lastEmail);
+    }
+  }, []);
 
   return (
     <div className="pt-32 pb-20 bg-gray-50 min-h-screen">
       <div className="max-w-6xl mx-auto px-4">
         <h1 className="text-3xl font-bold mb-8">Mes commandes</h1>
         
-        <div className="space-y-4">
-          {orders.map((order) => (
-            <div key={order.id} className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow">
-              <div className="flex flex-wrap justify-between items-start gap-4 mb-4">
-                <div>
-                  <p className="text-sm text-gray-500">Commande du</p>
-                  <p className="font-medium">{new Date(order.created_at).toLocaleDateString('fr-FR')}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">N° commande</p>
-                  <p className="font-mono text-sm">{order.id}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Total</p>
-                  <p className="font-bold text-red-500">{Math.round(order.total).toLocaleString('fr-FR')} FCFA</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Statut</p>
-                  <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
-                    {getStatusLabel(order.status)}
-                  </span>
-                </div>
-              </div>
-              
-              <div className="border-t pt-4">
-                <p className="text-sm font-medium mb-2">Articles :</p>
-                <div className="space-y-1">
-                  {order.items.slice(0, 3).map((item, idx) => (
-                    <div key={idx} className="flex justify-between text-sm">
-                      <span>{item.name} x{item.quantity}</span>
-                      <span>{Math.round(item.price * item.quantity).toLocaleString('fr-FR')} FCFA</span>
-                    </div>
-                  ))}
-                  {order.items.length > 3 && (
-                    <p className="text-sm text-gray-500">+{order.items.length - 3} autre(s) article(s)</p>
-                  )}
-                </div>
-              </div>
-              
-              <div className="border-t pt-4 mt-4 flex justify-end gap-3">
-                <button
-                  onClick={() => generateInvoicePDF(order)}
-                  className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 transition-colors"
-                >
-                  <DocumentArrowDownIcon className="w-4 h-4" />
-                  Télécharger facture
-                </button>
-                <button
-                  onClick={() => {
-                    setSelectedOrder(order);
-                    setShowDetailsModal(true);
-                  }}
-                  className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 transition-colors"
-                >
-                  <EyeIcon className="w-4 h-4" />
-                  Détails
-                </button>
-              </div>
-            </div>
-          ))}
+        {/* Formulaire de recherche par email */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm mb-8">
+          <p className="text-gray-600 mb-4">Entrez votre email pour retrouver vos commandes :</p>
+          <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-4">
+            <input
+              type="email"
+              placeholder="Votre email"
+              value={searchEmail}
+              onChange={(e) => setSearchEmail(e.target.value)}
+              className="flex-1 px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+              required
+            />
+            <button
+              type="submit"
+              className="bg-black text-white px-6 py-3 rounded-lg hover:bg-gray-800 transition-colors"
+            >
+              Voir mes commandes
+            </button>
+          </form>
         </div>
+
+        {loadingOrders && searched && (
+          <div className="text-center py-12">
+            <div className="w-12 h-12 border-4 border-red-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-gray-500">Chargement...</p>
+          </div>
+        )}
+
+        {searched && !loadingOrders && orders.length === 0 && (
+          <div className="bg-white rounded-2xl p-12 text-center">
+            <p className="text-gray-500 text-lg mb-6">Aucune commande trouvée pour cet email</p>
+            <Link to="/shop">
+              <button className="bg-black text-white px-8 py-3 rounded-full hover:bg-gray-800">
+                Découvrir nos produits
+              </button>
+            </Link>
+          </div>
+        )}
+
+        {orders.length > 0 && (
+          <div className="space-y-4">
+            {orders.map((order) => (
+              <div key={order.id} className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex flex-wrap justify-between items-start gap-4 mb-4">
+                  <div>
+                    <p className="text-sm text-gray-500">Commande du</p>
+                    <p className="font-medium">{new Date(order.created_at).toLocaleDateString('fr-FR')}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">N° commande</p>
+                    <p className="font-mono text-sm">{order.id}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Total</p>
+                    <p className="font-bold text-red-500">{Math.round(order.total).toLocaleString('fr-FR')} FCFA</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Statut</p>
+                    <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
+                      {getStatusLabel(order.status)}
+                    </span>
+                  </div>
+                </div>
+                
+                <div className="border-t pt-4">
+                  <p className="text-sm font-medium mb-2">Articles :</p>
+                  <div className="space-y-1">
+                    {order.items.slice(0, 3).map((item, idx) => (
+                      <div key={idx} className="flex justify-between text-sm">
+                        <span>{item.name} x{item.quantity}</span>
+                        <span>{Math.round(item.price * item.quantity).toLocaleString('fr-FR')} FCFA</span>
+                      </div>
+                    ))}
+                    {order.items.length > 3 && (
+                      <p className="text-sm text-gray-500">+{order.items.length - 3} autre(s) article(s)</p>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="border-t pt-4 mt-4 flex justify-end gap-3">
+                  <button
+                    onClick={() => generateInvoicePDF(order)}
+                    className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 transition-colors"
+                  >
+                    <DocumentArrowDownIcon className="w-4 h-4" />
+                    Télécharger facture
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSelectedOrder(order);
+                      setShowDetailsModal(true);
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 transition-colors"
+                  >
+                    <EyeIcon className="w-4 h-4" />
+                    Détails
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Modal Détails de la commande */}

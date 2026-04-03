@@ -2,7 +2,6 @@ import { motion } from 'framer-motion';
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
-import { useAuth } from '../context/AuthContext';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import { db } from '../lib/firebase';
 import { collection, addDoc } from 'firebase/firestore';
@@ -10,27 +9,12 @@ import toast, { Toaster } from 'react-hot-toast';
 
 const Checkout = () => {
   const navigate = useNavigate();
-  const { user, loading: authLoading } = useAuth();
   const { cart, totalPrice, clearCart } = useCart();
-  const [step, setStep] = useState(1);
   const [isProcessing, setIsProcessing] = useState(false);
-
-  useEffect(() => {
-    if (!authLoading && !user) {
-      navigate('/login?redirect=/checkout');
-    }
-  }, [user, authLoading, navigate]);
-
-  useEffect(() => {
-    if (!authLoading && user && cart.length === 0) {
-      navigate('/cart');
-    }
-  }, [cart, user, authLoading, navigate]);
-
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
-    email: user?.email || '',
+    email: '',
     phone: '',
     address: '',
     city: '',
@@ -38,11 +22,12 @@ const Checkout = () => {
     country: "Côte d'Ivoire"
   });
 
+  // Redirection si panier vide
   useEffect(() => {
-    if (user?.email) {
-      setFormData(prev => ({ ...prev, email: user.email || '' }));
+    if (cart.length === 0) {
+      navigate('/cart');
     }
-  }, [user]);
+  }, [cart, navigate]);
 
   const handleInputChange = (e) => {
     setFormData({
@@ -51,18 +36,16 @@ const Checkout = () => {
     });
   };
 
-  const handleNextStep = () => {
+  const handlePlaceOrder = async () => {
+    // Vérifier les champs obligatoires
     const requiredFields = ['firstName', 'lastName', 'email', 'phone', 'address', 'city', 'postalCode'];
     const isValid = requiredFields.every(field => formData[field].trim() !== '');
     
-    if (isValid) {
-      setStep(2);
-    } else {
+    if (!isValid) {
       toast.error('Veuillez remplir tous les champs obligatoires');
+      return;
     }
-  };
 
-  const handlePlaceOrder = async () => {
     setIsProcessing(true);
     
     const order = {
@@ -88,7 +71,8 @@ const Checkout = () => {
         country: formData.country
       },
       payment_method: 'cash_on_delivery',
-      user_id: user?.uid,
+      user_id: null, // Pas d'utilisateur connecté
+      user_email: formData.email, // On garde l'email pour les recherches
       status: 'pending',
       created_at: new Date().toISOString()
     };
@@ -98,12 +82,14 @@ const Checkout = () => {
       await addDoc(collection(db, 'orders'), order);
       clearCart();
       
-      // Notification de succès
+      // Sauvegarder l'email pour le suivi de commande
+      localStorage.setItem('lastOrderEmail', formData.email);
+      
       toast.success('✅ Commande validée avec succès !');
       
-      // Redirection vers la page des commandes après 2 secondes
+      // Redirection vers la page de confirmation
       setTimeout(() => {
-        navigate('/orders');
+        navigate(`/confirmation?orderId=${order.id}`);
       }, 2000);
       
     } catch (error) {
@@ -117,18 +103,7 @@ const Checkout = () => {
   const deliveryFee = 0;
   const totalWithDelivery = totalPrice + deliveryFee;
 
-  if (authLoading) {
-    return (
-      <div className="pt-32 pb-20 bg-white min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-red-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-500">Chargement...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user || cart.length === 0) {
+  if (cart.length === 0) {
     return null;
   }
 
@@ -144,124 +119,115 @@ const Checkout = () => {
             </button>
           </Link>
           <h1 className="text-3xl md:text-4xl font-bold">Finaliser ma commande</h1>
-          <p className="text-gray-500 mt-2">Étape {step} sur 2</p>
+          <p className="text-gray-500 mt-2">Vos informations de livraison</p>
         </div>
 
         <div className="grid lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
-            {step === 1 && (
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="bg-white rounded-2xl p-6 shadow-sm"
-              >
-                <h2 className="text-xl font-bold mb-6">Informations de livraison</h2>
-                
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Prénom *</label>
-                    <input
-                      type="text"
-                      name="firstName"
-                      value={formData.firstName}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Nom *</label>
-                    <input
-                      type="text"
-                      name="lastName"
-                      value={formData.lastName}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Email *</label>
-                    <input
-                      type="email"
-                      name="email"
-                      value={formData.email}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Téléphone *</label>
-                    <input
-                      type="tel"
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleInputChange}
-                      placeholder="XX XX XX XX XX"
-                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-                    />
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium mb-2">Adresse *</label>
-                    <input
-                      type="text"
-                      name="address"
-                      value={formData.address}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Ville *</label>
-                    <input
-                      type="text"
-                      name="city"
-                      value={formData.city}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Code postal *</label>
-                    <input
-                      type="text"
-                      name="postalCode"
-                      value={formData.postalCode}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-                    />
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium mb-2">Pays</label>
-                    <select
-                      name="country"
-                      value={formData.country}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-                    >
-                      <option>Côte d'Ivoire</option>
-                      <option>France</option>
-                      <option>Sénégal</option>
-                      <option>Cameroun</option>
-                    </select>
-                  </div>
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="bg-white rounded-2xl p-6 shadow-sm"
+            >
+              <h2 className="text-xl font-bold mb-6">Informations de livraison</h2>
+              
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">Prénom *</label>
+                  <input
+                    type="text"
+                    name="firstName"
+                    value={formData.firstName}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                    required
+                  />
                 </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Nom *</label>
+                  <input
+                    type="text"
+                    name="lastName"
+                    value={formData.lastName}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Email *</label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Téléphone *</label>
+                  <input
+                    type="tel"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleInputChange}
+                    placeholder="XX XX XX XX XX"
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                    required
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium mb-2">Adresse *</label>
+                  <input
+                    type="text"
+                    name="address"
+                    value={formData.address}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Ville *</label>
+                  <input
+                    type="text"
+                    name="city"
+                    value={formData.city}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Code postal *</label>
+                  <input
+                    type="text"
+                    name="postalCode"
+                    value={formData.postalCode}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                    required
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium mb-2">Pays</label>
+                  <select
+                    name="country"
+                    value={formData.country}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                  >
+                    <option>Côte d'Ivoire</option>
+                    <option>France</option>
+                    <option>Sénégal</option>
+                    <option>Cameroun</option>
+                  </select>
+                </div>
+              </div>
 
-                <button
-                  onClick={handleNextStep}
-                  className="w-full mt-6 bg-black text-white py-3 rounded-full font-semibold hover:bg-gray-800 transition-colors"
-                >
-                  Continuer vers paiement
-                </button>
-              </motion.div>
-            )}
-
-            {step === 2 && (
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="bg-white rounded-2xl p-6 shadow-sm"
-              >
-                <h2 className="text-xl font-bold mb-6">Mode de paiement</h2>
-                
+              <div className="mt-6 pt-4 border-t">
+                <h3 className="text-lg font-semibold mb-3">Mode de paiement</h3>
                 <div className="bg-gray-50 rounded-lg p-4">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
@@ -273,18 +239,18 @@ const Checkout = () => {
                     </div>
                   </div>
                 </div>
+              </div>
 
-                <button
-                  onClick={handlePlaceOrder}
-                  disabled={isProcessing}
-                  className={`w-full mt-6 bg-red-500 text-white py-3 rounded-full font-semibold transition-colors ${
-                    isProcessing ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-600'
-                  }`}
-                >
-                  {isProcessing ? 'Traitement en cours...' : `Confirmer la commande - ${Math.round(totalWithDelivery).toLocaleString('fr-FR')} FCFA`}
-                </button>
-              </motion.div>
-            )}
+              <button
+                onClick={handlePlaceOrder}
+                disabled={isProcessing}
+                className={`w-full mt-6 bg-red-500 text-white py-3 rounded-full font-semibold transition-colors ${
+                  isProcessing ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-600'
+                }`}
+              >
+                {isProcessing ? 'Traitement en cours...' : `Confirmer la commande - ${Math.round(totalWithDelivery).toLocaleString('fr-FR')} FCFA`}
+              </button>
+            </motion.div>
           </div>
 
           <div className="lg:col-span-1">
