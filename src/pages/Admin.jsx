@@ -2,6 +2,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { productApi } from '../lib/api';
+import { listenActiveUsersCount } from '../lib/userTracking';
 import { 
   TrashIcon, 
   PencilIcon, 
@@ -21,6 +22,7 @@ const Admin = () => {
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [loadingOrders, setLoadingOrders] = useState(true);
   const [error, setError] = useState(null);
+  const [activeUsers, setActiveUsers] = useState(0);
   const [showModal, setShowModal] = useState(false);
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
@@ -39,6 +41,14 @@ const Admin = () => {
     images: []
   });
 
+  // Écouter le nombre d'utilisateurs connectés
+  useEffect(() => {
+    const unsubscribe = listenActiveUsersCount((count) => {
+      setActiveUsers(count);
+    });
+    return () => unsubscribe();
+  }, []);
+
   useEffect(() => {
     if (!loading && !user) {
       navigate('/login?redirect=/admin');
@@ -53,7 +63,6 @@ const Admin = () => {
       setLoadingProducts(true);
       setError(null);
       const response = await productApi.getAll({ limit: 100 });
-      console.log('Produits reçus:', response.data);
       setProducts(response.data);
     } catch (error) {
       console.error('Erreur fetch produits:', error);
@@ -88,7 +97,7 @@ const Admin = () => {
     formData.append('file', file);
     
     try {
-      const response = await fetch('http://localhost:8001/api/v1/upload/image', {
+      const response = await fetch('https://dmembre-toi-backend-api.onrender.com/api/v1/upload/image', {
         method: 'POST',
         body: formData,
       });
@@ -257,7 +266,7 @@ const Admin = () => {
       <div className="max-w-7xl mx-auto px-4">
         <h1 className="text-3xl font-bold mb-8">Dashboard Admin</h1>
         
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
           <div className="bg-white rounded-2xl p-6 shadow-sm">
             <p className="text-sm text-gray-500">Total produits</p>
             <p className="text-3xl font-bold">{products.length}</p>
@@ -273,6 +282,10 @@ const Admin = () => {
           <div className="bg-white rounded-2xl p-6 shadow-sm">
             <p className="text-sm text-gray-500">Chiffre d'affaires</p>
             <p className="text-3xl font-bold text-green-600">{Math.round(totalRevenue).toLocaleString('fr-FR')} FCFA</p>
+          </div>
+          <div className="bg-white rounded-2xl p-6 shadow-sm">
+            <p className="text-sm text-gray-500">Utilisateurs en ligne</p>
+            <p className="text-3xl font-bold text-blue-600">{activeUsers}</p>
           </div>
         </div>
 
@@ -294,7 +307,7 @@ const Admin = () => {
               </button>
             </div>
             {products.length === 0 ? (
-              <p className="text-center text-gray-500 py-8">Aucun produit trouvé. Cliquez sur "Ajouter" pour créer un produit.</p>
+              <p className="text-center text-gray-500 py-8">Aucun produit trouvé.</p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">

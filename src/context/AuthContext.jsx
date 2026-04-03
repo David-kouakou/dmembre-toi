@@ -9,6 +9,7 @@ import {
 import { auth, googleProvider } from '../lib/firebase';
 import axios from 'axios';
 import { API_URL } from '../lib/api';
+import { trackUserLogin, trackUserLogout } from '../lib/userTracking';
 
 const AuthContext = createContext();
 
@@ -24,6 +25,8 @@ export const AuthProvider = ({ children }) => {
       setUser(user);
       
       if (user) {
+        await trackUserLogin(user.uid);
+        
         try {
           const token = await user.getIdToken();
           const response = await axios.post(`${API_URL}/auth/verify-token`, { token });
@@ -42,10 +45,30 @@ export const AuthProvider = ({ children }) => {
     return unsubscribe;
   }, []);
 
-  const signIn = (email, password) => signInWithEmailAndPassword(auth, email, password);
-  const signUp = (email, password) => createUserWithEmailAndPassword(auth, email, password);
-  const signInWithGoogle = () => signInWithPopup(auth, googleProvider);
-  const logout = () => signOut(auth);
+  const signIn = async (email, password) => {
+    const result = await signInWithEmailAndPassword(auth, email, password);
+    await trackUserLogin(result.user.uid);
+    return result;
+  };
+  
+  const signUp = async (email, password) => {
+    const result = await createUserWithEmailAndPassword(auth, email, password);
+    await trackUserLogin(result.user.uid);
+    return result;
+  };
+  
+  const signInWithGoogle = async () => {
+    const result = await signInWithPopup(auth, googleProvider);
+    await trackUserLogin(result.user.uid);
+    return result;
+  };
+  
+  const logout = async () => {
+    if (user) {
+      await trackUserLogout(user.uid);
+    }
+    await signOut(auth);
+  };
 
   return (
     <AuthContext.Provider value={{ user, loading, isAdmin, signIn, signUp, signInWithGoogle, logout }}>
