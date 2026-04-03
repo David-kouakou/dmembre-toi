@@ -4,6 +4,8 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
+import { db } from '../lib/firebase';
+import { collection, addDoc } from 'firebase/firestore';
 
 const Checkout = () => {
   const navigate = useNavigate();
@@ -12,21 +14,18 @@ const Checkout = () => {
   const [step, setStep] = useState(1);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Vérification de l'authentification
   useEffect(() => {
     if (!authLoading && !user) {
       navigate('/login?redirect=/checkout');
     }
   }, [user, authLoading, navigate]);
 
-  // Redirection si panier vide
   useEffect(() => {
     if (!authLoading && user && cart.length === 0) {
       navigate('/cart');
     }
   }, [cart, user, authLoading, navigate]);
 
-  // Formulaire livraison
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -93,16 +92,17 @@ const Checkout = () => {
       created_at: new Date().toISOString()
     };
     
-    const orders = JSON.parse(localStorage.getItem('orders') || '[]');
-    orders.push(order);
-    localStorage.setItem('orders', JSON.stringify(orders));
-    
-    clearCart();
-    
-    setTimeout(() => {
+    try {
+      // Sauvegarde dans Firestore
+      await addDoc(collection(db, 'orders'), order);
+      clearCart();
       navigate(`/confirmation?orderId=${order.id}`);
+    } catch (error) {
+      console.error('Erreur lors de la commande:', error);
+      alert('Une erreur est survenue');
+    } finally {
       setIsProcessing(false);
-    }, 1000);
+    }
   };
 
   const deliveryFee = 0;
@@ -138,7 +138,6 @@ const Checkout = () => {
         </div>
 
         <div className="grid lg:grid-cols-3 gap-8">
-          {/* Formulaire */}
           <div className="lg:col-span-2">
             {step === 1 && (
               <motion.div
@@ -278,7 +277,6 @@ const Checkout = () => {
             )}
           </div>
 
-          {/* Résumé */}
           <div className="lg:col-span-1">
             <div className="bg-white rounded-2xl p-6 shadow-sm sticky top-28">
               <h2 className="text-lg font-bold mb-4">Récapitulatif</h2>

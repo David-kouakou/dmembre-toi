@@ -4,6 +4,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { DocumentArrowDownIcon, EyeIcon } from '@heroicons/react/24/outline';
 import { generateInvoicePDF } from '../components/Invoice';
+import { db } from '../lib/firebase';
+import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 
 const Orders = () => {
   const { user, loading } = useAuth();
@@ -11,6 +13,7 @@ const Orders = () => {
   const [orders, setOrders] = useState([]);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [loadingOrders, setLoadingOrders] = useState(true);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -19,11 +22,27 @@ const Orders = () => {
   }, [user, loading, navigate]);
 
   useEffect(() => {
-    if (user) {
-      const savedOrders = JSON.parse(localStorage.getItem('orders') || '[]');
-      const userOrders = savedOrders.filter((order) => order.user_id === user.uid);
-      setOrders(userOrders.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
-    }
+    const fetchOrders = async () => {
+      if (!user) return;
+      
+      try {
+        setLoadingOrders(true);
+        const q = query(
+          collection(db, 'orders'),
+          where('user_id', '==', user.uid),
+          orderBy('created_at', 'desc')
+        );
+        const querySnapshot = await getDocs(q);
+        const userOrders = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setOrders(userOrders);
+      } catch (error) {
+        console.error('Erreur chargement commandes:', error);
+      } finally {
+        setLoadingOrders(false);
+      }
+    };
+    
+    fetchOrders();
   }, [user]);
 
   const getStatusLabel = (status) => {
@@ -48,7 +67,7 @@ const Orders = () => {
     }
   };
 
-  if (loading) {
+  if (loading || loadingOrders) {
     return (
       <div className="pt-32 text-center">
         <div className="text-lg">Chargement...</div>
@@ -183,10 +202,10 @@ const Orders = () => {
                 <div>
                   <h3 className="font-semibold mb-2">Informations de livraison</h3>
                   <div className="bg-gray-50 rounded-lg p-4 space-y-1">
-                    <p><strong>Nom:</strong> {selectedOrder.shipping_address?.first_name || selectedOrder.shippingAddress?.firstName} {selectedOrder.shipping_address?.last_name || selectedOrder.shippingAddress?.lastName}</p>
-                    <p><strong>Email:</strong> {selectedOrder.shipping_address?.email || selectedOrder.shippingAddress?.email}</p>
-                    <p><strong>Téléphone:</strong> {selectedOrder.shipping_address?.phone || selectedOrder.shippingAddress?.phone}</p>
-                    <p><strong>Adresse:</strong> {selectedOrder.shipping_address?.address || selectedOrder.shippingAddress?.address}, {selectedOrder.shipping_address?.postal_code || selectedOrder.shippingAddress?.postalCode} {selectedOrder.shipping_address?.city || selectedOrder.shippingAddress?.city}, {selectedOrder.shipping_address?.country || selectedOrder.shippingAddress?.country}</p>
+                    <p><strong>Nom:</strong> {selectedOrder.shipping_address?.first_name} {selectedOrder.shipping_address?.last_name}</p>
+                    <p><strong>Email:</strong> {selectedOrder.shipping_address?.email}</p>
+                    <p><strong>Téléphone:</strong> {selectedOrder.shipping_address?.phone}</p>
+                    <p><strong>Adresse:</strong> {selectedOrder.shipping_address?.address}, {selectedOrder.shipping_address?.postal_code} {selectedOrder.shipping_address?.city}, {selectedOrder.shipping_address?.country}</p>
                   </div>
                 </div>
 
