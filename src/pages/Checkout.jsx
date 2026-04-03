@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import { db } from '../lib/firebase';
 import { collection, addDoc } from 'firebase/firestore';
+import toast, { Toaster } from 'react-hot-toast';
 
 const Checkout = () => {
   const navigate = useNavigate();
@@ -57,7 +58,7 @@ const Checkout = () => {
     if (isValid) {
       setStep(2);
     } else {
-      alert('Veuillez remplir tous les champs obligatoires');
+      toast.error('Veuillez remplir tous les champs obligatoires');
     }
   };
 
@@ -96,10 +97,18 @@ const Checkout = () => {
       // Sauvegarde dans Firestore
       await addDoc(collection(db, 'orders'), order);
       clearCart();
-      navigate(`/confirmation?orderId=${order.id}`);
+      
+      // Notification de succès
+      toast.success('✅ Commande validée avec succès !');
+      
+      // Redirection vers la page des commandes après 2 secondes
+      setTimeout(() => {
+        navigate('/orders');
+      }, 2000);
+      
     } catch (error) {
       console.error('Erreur lors de la commande:', error);
-      alert('Une erreur est survenue');
+      toast.error('❌ Une erreur est survenue');
     } finally {
       setIsProcessing(false);
     }
@@ -125,6 +134,7 @@ const Checkout = () => {
 
   return (
     <div className="pt-28 pb-20 bg-gray-50 min-h-screen">
+      <Toaster position="top-center" />
       <div className="max-w-6xl mx-auto px-4">
         <div className="mb-8">
           <Link to="/cart">
