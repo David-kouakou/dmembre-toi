@@ -7,11 +7,16 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 8001;
 
-// Middleware
+// Configuration CORS - autorise toutes les origines
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:3000'],
-  credentials: true
+  origin: '*',  // ← Permet toutes les origines (pour le test)
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
+// Pour les requêtes préflight OPTIONS
+app.options('*', cors());
+
 app.use(express.json());
 
 // Routes
