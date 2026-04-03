@@ -12,17 +12,14 @@ const Checkout = () => {
   const { cart, totalPrice, clearCart } = useCart();
   const [isProcessing, setIsProcessing] = useState(false);
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
+    fullName: '',
     phone: '',
-    address: '',
     city: '',
-    postalCode: '',
-    country: "Côte d'Ivoire"
+    neighborhood: '',
+    country: "Côte d'Ivoire",
+    email: ''
   });
 
-  // Redirection si panier vide
   useEffect(() => {
     if (cart.length === 0) {
       navigate('/cart');
@@ -38,7 +35,7 @@ const Checkout = () => {
 
   const handlePlaceOrder = async () => {
     // Vérifier les champs obligatoires
-    const requiredFields = ['firstName', 'lastName', 'email', 'phone', 'address', 'city', 'postalCode'];
+    const requiredFields = ['fullName', 'phone', 'city', 'neighborhood'];
     const isValid = requiredFields.every(field => formData[field].trim() !== '');
     
     if (!isValid) {
@@ -48,8 +45,10 @@ const Checkout = () => {
 
     setIsProcessing(true);
     
+    const orderId = 'ORD-' + Date.now();
+    
     const order = {
-      id: 'ORD-' + Date.now(),
+      id: orderId,
       items: cart.map(item => ({
         product_id: item.id,
         name: item.name,
@@ -61,35 +60,32 @@ const Checkout = () => {
       })),
       total: totalPrice,
       shipping_address: {
-        first_name: formData.firstName,
-        last_name: formData.lastName,
-        email: formData.email,
+        full_name: formData.fullName,
         phone: formData.phone,
-        address: formData.address,
         city: formData.city,
-        postal_code: formData.postalCode,
-        country: formData.country
+        neighborhood: formData.neighborhood,
+        country: formData.country,
+        email: formData.email || 'non renseigné'
       },
       payment_method: 'cash_on_delivery',
-      user_id: null, // Pas d'utilisateur connecté
-      user_email: formData.email, // On garde l'email pour les recherches
       status: 'pending',
       created_at: new Date().toISOString()
     };
     
     try {
-      // Sauvegarde dans Firestore
       await addDoc(collection(db, 'orders'), order);
       clearCart();
       
-      // Sauvegarder l'email pour le suivi de commande
-      localStorage.setItem('lastOrderEmail', formData.email);
+      // Sauvegarder l'email pour le suivi
+      if (formData.email) {
+        localStorage.setItem('lastOrderEmail', formData.email);
+      }
       
       toast.success('✅ Commande validée avec succès !');
       
-      // Redirection vers la page de confirmation
+      // Redirection vers la page de confirmation avec la facture
       setTimeout(() => {
-        navigate(`/confirmation?orderId=${order.id}`);
+        navigate(`/confirmation?orderId=${orderId}&email=${encodeURIComponent(formData.email || '')}`);
       }, 2000);
       
     } catch (error) {
@@ -110,7 +106,7 @@ const Checkout = () => {
   return (
     <div className="pt-28 pb-20 bg-gray-50 min-h-screen">
       <Toaster position="top-center" />
-      <div className="max-w-6xl mx-auto px-4">
+      <div className="max-w-4xl mx-auto px-4">
         <div className="mb-8">
           <Link to="/cart">
             <button className="flex items-center gap-2 text-gray-500 hover:text-black mb-4 transition-colors">
@@ -131,98 +127,95 @@ const Checkout = () => {
             >
               <h2 className="text-xl font-bold mb-6">Informations de livraison</h2>
               
-              <div className="grid md:grid-cols-2 gap-4">
+              <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium mb-2">Prénom *</label>
+                  <label className="block text-sm font-medium mb-2">
+                    Nom complet <span className="text-red-500">*</span>
+                  </label>
                   <input
                     type="text"
-                    name="firstName"
-                    value={formData.firstName}
+                    name="fullName"
+                    value={formData.fullName}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                    placeholder="Jean Kouadio"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
                     required
                   />
                 </div>
+                
                 <div>
-                  <label className="block text-sm font-medium mb-2">Nom *</label>
-                  <input
-                    type="text"
-                    name="lastName"
-                    value={formData.lastName}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">Email *</label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">Téléphone *</label>
+                  <label className="block text-sm font-medium mb-2">
+                    Téléphone <span className="text-red-500">*</span>
+                  </label>
                   <input
                     type="tel"
                     name="phone"
                     value={formData.phone}
                     onChange={handleInputChange}
                     placeholder="XX XX XX XX XX"
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
                     required
                   />
                 </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium mb-2">Adresse *</label>
-                  <input
-                    type="text"
-                    name="address"
-                    value={formData.address}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-                    required
-                  />
-                </div>
+                
                 <div>
-                  <label className="block text-sm font-medium mb-2">Ville *</label>
+                  <label className="block text-sm font-medium mb-2">
+                    Ville <span className="text-red-500">*</span>
+                  </label>
                   <input
                     type="text"
                     name="city"
                     value={formData.city}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                    placeholder="Abidjan"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
                     required
                   />
                 </div>
+                
                 <div>
-                  <label className="block text-sm font-medium mb-2">Code postal *</label>
+                  <label className="block text-sm font-medium mb-2">
+                    Quartier <span className="text-red-500">*</span>
+                  </label>
                   <input
                     type="text"
-                    name="postalCode"
-                    value={formData.postalCode}
+                    name="neighborhood"
+                    value={formData.neighborhood}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                    placeholder="Cocody, Plateau, Marcory..."
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
                     required
                   />
                 </div>
-                <div className="md:col-span-2">
+                
+                <div>
                   <label className="block text-sm font-medium mb-2">Pays</label>
                   <select
                     name="country"
                     value={formData.country}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
                   >
                     <option>Côte d'Ivoire</option>
                     <option>France</option>
                     <option>Sénégal</option>
                     <option>Cameroun</option>
                   </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Email <span className="text-gray-400 text-xs font-normal">(facultatif - pour recevoir votre facture)</span>
+                  </label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    placeholder="votre@email.com"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">Renseignez votre email pour recevoir votre facture par email</p>
                 </div>
               </div>
 

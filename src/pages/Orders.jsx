@@ -1,12 +1,14 @@
 import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { DocumentArrowDownIcon, EyeIcon } from '@heroicons/react/24/outline';
 import { generateInvoicePDF } from '../components/Invoice';
 import { db } from '../lib/firebase';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 
 const Orders = () => {
+  const [searchParams] = useSearchParams();
+  const emailParam = searchParams.get('email');
   const [orders, setOrders] = useState([]);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
@@ -21,7 +23,7 @@ const Orders = () => {
       setLoadingOrders(true);
       const q = query(
         collection(db, 'orders'),
-        where('user_email', '==', email),
+        where('shipping_address.email', '==', email),
         orderBy('created_at', 'desc')
       );
       const querySnapshot = await getDocs(q);
@@ -64,21 +66,18 @@ const Orders = () => {
     }
   };
 
-  // Charger la dernière commande avec l'email sauvegardé
   useEffect(() => {
-    const lastEmail = localStorage.getItem('lastOrderEmail');
-    if (lastEmail) {
-      setSearchEmail(lastEmail);
-      fetchOrders(lastEmail);
+    if (emailParam && emailParam !== 'null') {
+      setSearchEmail(emailParam);
+      fetchOrders(emailParam);
     }
-  }, []);
+  }, [emailParam]);
 
   return (
     <div className="pt-32 pb-20 bg-gray-50 min-h-screen">
       <div className="max-w-6xl mx-auto px-4">
         <h1 className="text-3xl font-bold mb-8">Mes commandes</h1>
         
-        {/* Formulaire de recherche par email */}
         <div className="bg-white rounded-2xl p-6 shadow-sm mb-8">
           <p className="text-gray-600 mb-4">Entrez votre email pour retrouver vos commandes :</p>
           <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-4">
@@ -97,6 +96,7 @@ const Orders = () => {
               Voir mes commandes
             </button>
           </form>
+          <p className="text-xs text-gray-400 mt-2">Utilisez l'email que vous avez renseigné lors de votre commande</p>
         </div>
 
         {loadingOrders && searched && (
@@ -219,10 +219,12 @@ const Orders = () => {
                 <div>
                   <h3 className="font-semibold mb-2">Informations de livraison</h3>
                   <div className="bg-gray-50 rounded-lg p-4 space-y-1">
-                    <p><strong>Nom:</strong> {selectedOrder.shipping_address?.first_name} {selectedOrder.shipping_address?.last_name}</p>
-                    <p><strong>Email:</strong> {selectedOrder.shipping_address?.email}</p>
+                    <p><strong>Nom:</strong> {selectedOrder.shipping_address?.full_name}</p>
                     <p><strong>Téléphone:</strong> {selectedOrder.shipping_address?.phone}</p>
-                    <p><strong>Adresse:</strong> {selectedOrder.shipping_address?.address}, {selectedOrder.shipping_address?.postal_code} {selectedOrder.shipping_address?.city}, {selectedOrder.shipping_address?.country}</p>
+                    <p><strong>Adresse:</strong> {selectedOrder.shipping_address?.neighborhood}, {selectedOrder.shipping_address?.city}, {selectedOrder.shipping_address?.country}</p>
+                    {selectedOrder.shipping_address?.email && selectedOrder.shipping_address.email !== 'non renseigné' && (
+                      <p><strong>Email:</strong> {selectedOrder.shipping_address?.email}</p>
+                    )}
                   </div>
                 </div>
 

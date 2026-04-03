@@ -1,38 +1,63 @@
 import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { DocumentArrowDownIcon, EyeIcon } from '@heroicons/react/24/outline';
+import { DocumentArrowDownIcon } from '@heroicons/react/24/outline';
 import { generateInvoicePDF } from '../components/Invoice';
+import { db } from '../lib/firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import toast, { Toaster } from 'react-hot-toast';
 
 const Confirmation = () => {
   const [searchParams] = useSearchParams();
   const orderId = searchParams.get('orderId');
+  const emailParam = searchParams.get('email');
   const [order, setOrder] = useState(null);
-  const [showDetails, setShowDetails] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
 
   useEffect(() => {
-    if (orderId) {
-      const orders = JSON.parse(localStorage.getItem('orders') || '[]');
-      const foundOrder = orders.find((o) => o.id === orderId);
-      setOrder(foundOrder);
-    }
+    const fetchOrder = async () => {
+      if (orderId) {
+        try {
+          const q = query(collection(db, 'orders'), where('id', '==', orderId));
+          const querySnapshot = await getDocs(q);
+          if (!querySnapshot.empty) {
+            const orderData = { id: querySnapshot.docs[0].id, ...querySnapshot.docs[0].data() };
+            setOrder(orderData);
+            
+            // Envoyer l'email de confirmation si l'email est fourni
+            if (orderData.shipping_address?.email && orderData.shipping_address.email !== 'non renseigné' && !emailSent) {
+              await sendConfirmationEmail(orderData);
+              setEmailSent(true);
+            }
+          }
+        } catch (error) {
+          console.error('Erreur:', error);
+        }
+      }
+    };
+    fetchOrder();
   }, [orderId]);
+
+  const sendConfirmationEmail = async (order) => {
+    // Simulation d'envoi d'email
+    console.log('Email envoyé à:', order.shipping_address.email);
+    toast.success(`📧 Un email de confirmation a été envoyé à ${order.shipping_address.email}`);
+  };
 
   if (!order) {
     return (
       <div className="pt-32 pb-20 bg-white min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-red-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-500">Chargement...</p>
+          <p className="text-gray-500">Chargement de votre commande...</p>
         </div>
       </div>
     );
   }
 
-  const customerEmail = order.shipping_address?.email || order.shippingAddress?.email || 'notre service client';
-
   return (
     <div className="pt-32 pb-20 bg-gray-50 min-h-screen">
+      <Toaster position="top-center" />
       <div className="max-w-2xl mx-auto px-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -54,75 +79,15 @@ const Confirmation = () => {
           </div>
           
           <div className="border-t pt-6 mb-6">
-            <p className="text-gray-600 mb-4">
-              Un email de confirmation a été envoyé à <strong>{customerEmail}</strong>
+            <p className="text-gray-600 mb-2">
+              Vous serez informé de l'état de votre commande par SMS.
             </p>
-            <p className="text-gray-600">
-              Vous serez informé de l'état de votre commande par SMS et email.
-            </p>
+            {order.shipping_address?.email && order.shipping_address.email !== 'non renseigné' && (
+              <p className="text-gray-600">
+                Un email de confirmation a été envoyé à <strong>{order.shipping_address.email}</strong>
+              </p>
+            )}
           </div>
-
-          {/* Bouton pour afficher/cacher les détails */}
-          <button
-            onClick={() => setShowDetails(!showDetails)}
-            className="mb-6 text-red-500 hover:text-red-600 font-medium flex items-center justify-center gap-2 mx-auto"
-          >
-            <EyeIcon className="w-5 h-5" />
-            {showDetails ? 'Masquer les détails' : 'Voir les détails de ma commande'}
-          </button>
-
-          {/* Détails de la commande */}
-          {showDetails && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="bg-gray-50 rounded-xl p-4 mb-6 text-left"
-            >
-              <h3 className="font-semibold mb-3">Détails de la commande</h3>
-              
-              {/* Adresse de livraison */}
-              <div className="mb-4">
-                <p className="text-sm text-gray-500 font-medium mb-1">Livraison</p>
-                <p className="text-sm">
-                  {order.shipping_address?.first_name || order.shippingAddress?.firstName} {order.shipping_address?.last_name || order.shippingAddress?.lastName}
-                </p>
-                <p className="text-sm">{order.shipping_address?.address || order.shippingAddress?.address}</p>
-                <p className="text-sm">{order.shipping_address?.postal_code || order.shippingAddress?.postalCode} {order.shipping_address?.city || order.shippingAddress?.city}</p>
-                <p className="text-sm">{order.shipping_address?.country || order.shippingAddress?.country}</p>
-                <p className="text-sm">Tél: {order.shipping_address?.phone || order.shippingAddress?.phone}</p>
-              </div>
-
-              {/* Articles commandés */}
-              <div className="mb-4">
-                <p className="text-sm text-gray-500 font-medium mb-1">Articles</p>
-                <div className="space-y-2">
-                  {order.items.map((item, idx) => (
-                    <div key={idx} className="flex justify-between text-sm border-b pb-1">
-                      <div>
-                        <span className="font-medium">{item.name}</span>
-                        <span className="text-gray-500 text-xs ml-2">({item.color} / {item.size})</span>
-                        <span className="text-gray-400 text-xs ml-2">x{item.quantity}</span>
-                      </div>
-                      <span>{Math.round(item.price * item.quantity).toLocaleString('fr-FR')} FCFA</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Mode de paiement */}
-              <div className="mb-4">
-                <p className="text-sm text-gray-500 font-medium mb-1">Paiement</p>
-                <p className="text-sm">Paiement à la livraison</p>
-              </div>
-
-              {/* Total */}
-              <div className="border-t pt-2 flex justify-between font-semibold">
-                <span>Total</span>
-                <span className="text-red-500">{Math.round(order.total).toLocaleString('fr-FR')} FCFA</span>
-              </div>
-            </motion.div>
-          )}
           
           <div className="flex flex-col sm:flex-row gap-4">
             <Link to="/shop" className="flex-1">
@@ -132,13 +97,13 @@ const Confirmation = () => {
             </Link>
             <button
               onClick={() => generateInvoicePDF(order)}
-              className="flex-1 border-2 border-black text-black py-3 rounded-full font-semibold hover:bg-black hover:text-white transition-colors flex items-center justify-center gap-2"
+              className="flex-1 bg-black text-white py-3 rounded-full font-semibold hover:bg-gray-800 transition-colors flex items-center justify-center gap-2"
             >
               <DocumentArrowDownIcon className="w-5 h-5" />
               Télécharger la facture
             </button>
-            <Link to="/orders" className="flex-1">
-              <button className="w-full bg-black text-white py-3 rounded-full font-semibold hover:bg-gray-800 transition-colors">
+            <Link to={`/orders?email=${encodeURIComponent(order.shipping_address?.email || '')}`} className="flex-1">
+              <button className="w-full border-2 border-red-500 text-red-500 py-3 rounded-full font-semibold hover:bg-red-500 hover:text-white transition-colors">
                 Voir mes commandes
               </button>
             </Link>
