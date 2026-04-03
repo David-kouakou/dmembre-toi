@@ -6,6 +6,7 @@ import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import { db } from '../lib/firebase';
 import { collection, addDoc } from 'firebase/firestore';
 import toast, { Toaster } from 'react-hot-toast';
+import { generateInvoicePDF } from '../components/Invoice';
 
 const Checkout = () => {
   const navigate = useNavigate();
@@ -73,6 +74,7 @@ const Checkout = () => {
     };
     
     try {
+      // Sauvegarde dans Firestore
       await addDoc(collection(db, 'orders'), order);
       clearCart();
       
@@ -81,12 +83,20 @@ const Checkout = () => {
         localStorage.setItem('lastOrderEmail', formData.email);
       }
       
+      // Notifications de succès
       toast.success('✅ Commande validée avec succès !');
+      toast.success('📄 Génération de votre facture...');
       
-      // Redirection vers la page de confirmation avec la facture
+      // Générer la facture PDF après un court délai
+      setTimeout(() => {
+        generateInvoicePDF(order);
+        toast.success('📄 Facture générée avec succès !');
+      }, 500);
+      
+      // Rediriger vers la page de confirmation après 2 secondes
       setTimeout(() => {
         navigate(`/confirmation?orderId=${orderId}&email=${encodeURIComponent(formData.email || '')}`);
-      }, 2000);
+      }, 2500);
       
     } catch (error) {
       console.error('Erreur lors de la commande:', error);
@@ -215,7 +225,7 @@ const Checkout = () => {
                     placeholder="votre@email.com"
                     className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
                   />
-                  <p className="text-xs text-gray-400 mt-1">Renseignez votre email pour recevoir votre facture par email</p>
+                  <p className="text-xs text-gray-400 mt-1">Renseignez votre email pour recevoir votre facture</p>
                 </div>
               </div>
 

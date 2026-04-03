@@ -10,9 +10,10 @@ import toast, { Toaster } from 'react-hot-toast';
 const Confirmation = () => {
   const [searchParams] = useSearchParams();
   const orderId = searchParams.get('orderId');
+  const phoneParam = searchParams.get('phone');
   const emailParam = searchParams.get('email');
   const [order, setOrder] = useState(null);
-  const [emailSent, setEmailSent] = useState(false);
+  const [invoiceGenerated, setInvoiceGenerated] = useState(false);
 
   useEffect(() => {
     const fetchOrder = async () => {
@@ -23,12 +24,6 @@ const Confirmation = () => {
           if (!querySnapshot.empty) {
             const orderData = { id: querySnapshot.docs[0].id, ...querySnapshot.docs[0].data() };
             setOrder(orderData);
-            
-            // Envoyer l'email de confirmation si l'email est fourni
-            if (orderData.shipping_address?.email && orderData.shipping_address.email !== 'non renseigné' && !emailSent) {
-              await sendConfirmationEmail(orderData);
-              setEmailSent(true);
-            }
           }
         } catch (error) {
           console.error('Erreur:', error);
@@ -38,11 +33,14 @@ const Confirmation = () => {
     fetchOrder();
   }, [orderId]);
 
-  const sendConfirmationEmail = async (order) => {
-    // Simulation d'envoi d'email
-    console.log('Email envoyé à:', order.shipping_address.email);
-    toast.success(`📧 Un email de confirmation a été envoyé à ${order.shipping_address.email}`);
-  };
+  // Générer automatiquement la facture à l'arrivée sur la page
+  useEffect(() => {
+    if (order && !invoiceGenerated) {
+      generateInvoicePDF(order);
+      setInvoiceGenerated(true);
+      toast.success('📄 La facture a été générée automatiquement');
+    }
+  }, [order, invoiceGenerated]);
 
   if (!order) {
     return (
@@ -80,13 +78,16 @@ const Confirmation = () => {
           
           <div className="border-t pt-6 mb-6">
             <p className="text-gray-600 mb-2">
-              Vous serez informé de l'état de votre commande par SMS.
+              Un SMS de confirmation a été envoyé au <strong>{phoneParam}</strong>
             </p>
-            {order.shipping_address?.email && order.shipping_address.email !== 'non renseigné' && (
+            {emailParam && emailParam !== 'non renseigné' && (
               <p className="text-gray-600">
-                Un email de confirmation a été envoyé à <strong>{order.shipping_address.email}</strong>
+                Un email de confirmation a été envoyé à <strong>{emailParam}</strong>
               </p>
             )}
+            <p className="text-gray-600 mt-4">
+              La facture a été générée automatiquement. Vous pouvez la télécharger ci-dessous.
+            </p>
           </div>
           
           <div className="flex flex-col sm:flex-row gap-4">
@@ -102,7 +103,7 @@ const Confirmation = () => {
               <DocumentArrowDownIcon className="w-5 h-5" />
               Télécharger la facture
             </button>
-            <Link to={`/orders?email=${encodeURIComponent(order.shipping_address?.email || '')}`} className="flex-1">
+            <Link to={`/orders?email=${encodeURIComponent(emailParam || '')}`} className="flex-1">
               <button className="w-full border-2 border-red-500 text-red-500 py-3 rounded-full font-semibold hover:bg-red-500 hover:text-white transition-colors">
                 Voir mes commandes
               </button>

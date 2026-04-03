@@ -8,16 +8,16 @@ export const generateInvoicePDF = (order) => {
   doc.text('DMEMBRE TOI', 105, 20, { align: 'center' });
   
   doc.setFontSize(12);
-  doc.text('Facture', 105, 35, { align: 'center' });
+  doc.text('FACTURE', 105, 35, { align: 'center' });
   doc.text(`N° ${order.id}`, 105, 45, { align: 'center' });
   doc.text(`Date: ${new Date(order.created_at).toLocaleDateString('fr-FR')}`, 105, 55, { align: 'center' });
   
   // Informations client
   doc.setFontSize(10);
   doc.text('Facturé à :', 20, 75);
-  doc.text(`${order.shipping_address?.first_name || ''} ${order.shipping_address?.last_name || ''}`, 20, 85);
-  doc.text(order.shipping_address?.address || '', 20, 95);
-  doc.text(`${order.shipping_address?.postal_code || ''} ${order.shipping_address?.city || ''}`, 20, 105);
+  doc.text(`${order.shipping_address?.full_name || order.shipping_address?.first_name || ''} ${order.shipping_address?.last_name || ''}`, 20, 85);
+  doc.text(`Tél: ${order.shipping_address?.phone || ''}`, 20, 95);
+  doc.text(`${order.shipping_address?.neighborhood || order.shipping_address?.address || ''}, ${order.shipping_address?.city || ''}`, 20, 105);
   doc.text(order.shipping_address?.country || '', 20, 115);
   
   // Articles
@@ -44,5 +44,8 @@ export const generateInvoicePDF = (order) => {
   doc.text('Merci de votre confiance !', 105, 280, { align: 'center' });
   doc.text('DMEMBRE TOI - Tous droits réservés', 105, 290, { align: 'center' });
   
-  doc.save(`facture_${order.id}.pdf`);
+  // Ouvrir le PDF dans un nouvel onglet
+  const pdfBlob = doc.output('blob');
+  const pdfUrl = URL.createObjectURL(pdfBlob);
+  window.open(pdfUrl, '_blank');
 };
