@@ -43,6 +43,22 @@ const ProductCard = ({ product }) => {
         <p className="text-red-500 font-bold">{Math.round(product.price).toLocaleString('fr-FR')} FCFA</p>
       </Link>
       
+      {/* Indicateur de stock */}
+      {product.stock <= 10 && product.stock > 0 && (
+        <div className="mt-1">
+          <span className="text-xs text-orange-500 bg-orange-50 px-2 py-0.5 rounded-full">
+            ⚡ Plus que {product.stock} exemplaires
+          </span>
+        </div>
+      )}
+      {product.stock === 0 && (
+        <div className="mt-1">
+          <span className="text-xs text-red-500 bg-red-50 px-2 py-0.5 rounded-full">
+            ❌ Rupture de stock
+          </span>
+        </div>
+      )}
+      
       <div className="mt-2">
         <div className="flex gap-1 mb-2">
           {product.colors?.map(color => (
@@ -56,8 +72,12 @@ const ProductCard = ({ product }) => {
             </button>
           ))}
         </div>
-        <button onClick={handleAddToCart} className="w-full bg-black text-white py-1 rounded-lg text-sm hover:bg-gray-800">
-          Ajouter au panier
+        <button 
+          onClick={handleAddToCart} 
+          disabled={product.stock === 0}
+          className={`w-full py-1 rounded-lg text-sm transition-colors ${product.stock === 0 ? 'bg-gray-300 cursor-not-allowed' : 'bg-black text-white hover:bg-gray-800'}`}
+        >
+          {product.stock === 0 ? 'Rupture de stock' : 'Ajouter au panier'}
         </button>
       </div>
       {showMessage && <div className="absolute top-0 left-0 right-0 bg-green-500 text-white text-xs text-center py-1 rounded-t-xl">Ajouté !</div>}
@@ -93,10 +113,8 @@ const Shop = () => {
     { id: 'veste-jean-sans-manches', name: 'Vestes Jean Sans Manches' }
   ];
 
-  // Filtrer par catégorie
   let filteredProducts = selectedCategory === 'all' ? products : products.filter(p => p.category === selectedCategory);
   
-  // Filtrer par recherche
   if (searchQuery) {
     const query = searchQuery.toLowerCase();
     filteredProducts = filteredProducts.filter(p => 

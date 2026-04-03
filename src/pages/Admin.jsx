@@ -65,7 +65,6 @@ const Admin = () => {
   const fetchOrders = async () => {
     try {
       setLoadingOrders(true);
-      // Récupérer les commandes depuis Firestore
       const response = await fetch('https://dmembre-toi-backend-api.onrender.com/api/v1/orders');
       const data = await response.json();
       setOrders(data);
@@ -236,6 +235,7 @@ const Admin = () => {
   const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
   const totalOrders = orders.length;
   const pendingOrders = orders.filter(o => o.status === 'pending').length;
+  const lowStockProducts = products.filter(p => p.stock < 10 && p.stock > 0);
 
   if (loading || loadingProducts || loadingOrders) {
     return <div className="pt-32 text-center">Chargement...</div>;
@@ -259,7 +259,7 @@ const Admin = () => {
       <div className="max-w-7xl mx-auto px-4">
         <h1 className="text-3xl font-bold mb-8">Dashboard Admin</h1>
         
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
           <div className="bg-white rounded-2xl p-6 shadow-sm">
             <p className="text-sm text-gray-500">Total produits</p>
             <p className="text-3xl font-bold">{products.length}</p>
@@ -275,6 +275,10 @@ const Admin = () => {
           <div className="bg-white rounded-2xl p-6 shadow-sm">
             <p className="text-sm text-gray-500">Chiffre d'affaires</p>
             <p className="text-3xl font-bold text-green-600">{Math.round(totalRevenue).toLocaleString('fr-FR')} FCFA</p>
+          </div>
+          <div className="bg-white rounded-2xl p-6 shadow-sm">
+            <p className="text-sm text-gray-500">Produits stock faible</p>
+            <p className="text-3xl font-bold text-orange-600">{lowStockProducts.length}</p>
           </div>
         </div>
 
@@ -314,7 +318,14 @@ const Admin = () => {
                       <tr key={product.id} className="border-b hover:bg-gray-50">
                         <td className="py-2 font-medium">{product.name}</td>
                         <td className="py-2">{Math.round(product.price).toLocaleString('fr-FR')} FCFA</td>
-                        <td className="py-2">{product.stock}</td>
+                        <td className="py-2">
+                          <span className={product.stock < 10 ? 'text-red-500 font-semibold' : ''}>
+                            {product.stock}
+                          </span>
+                          {product.stock < 10 && product.stock > 0 && (
+                            <span className="ml-2 text-xs text-orange-500">⚠️ Stock faible</span>
+                          )}
+                        </td>
                         <td className="py-2">{product.category}</td>
                         <td className="py-2">
                           <button onClick={() => handleEdit(product)} className="text-blue-600 hover:text-blue-800 mr-3">
@@ -362,7 +373,7 @@ const Admin = () => {
                     <tr key={order.id} className="border-b hover:bg-gray-50">
                       <td className="py-2 font-mono text-xs">{order.id}</td>
                       <td className="py-2">{new Date(order.created_at).toLocaleDateString('fr-FR')}</td>
-                      <td className="py-2">{order.shipping_address?.first_name} {order.shipping_address?.last_name}</td>
+                      <td className="py-2">{order.shipping_address?.full_name || order.shipping_address?.first_name} {order.shipping_address?.last_name || ''}</td>
                       <td className="py-2 font-semibold">{Math.round(order.total).toLocaleString('fr-FR')} FCFA</td>
                       <td className="py-2">
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
@@ -440,10 +451,12 @@ const Admin = () => {
             <div className="mt-4">
               <h3 className="font-semibold mb-2">Client</h3>
               <div className="bg-gray-50 p-4 rounded-lg">
-                <p>{selectedOrder.shipping_address?.first_name} {selectedOrder.shipping_address?.last_name}</p>
-                <p>{selectedOrder.shipping_address?.email}</p>
-                <p>{selectedOrder.shipping_address?.phone}</p>
-                <p>{selectedOrder.shipping_address?.address}</p>
+                <p><strong>Nom:</strong> {selectedOrder.shipping_address?.full_name || selectedOrder.shipping_address?.first_name} {selectedOrder.shipping_address?.last_name || ''}</p>
+                <p><strong>Téléphone:</strong> {selectedOrder.shipping_address?.phone}</p>
+                <p><strong>Adresse:</strong> {selectedOrder.shipping_address?.neighborhood || selectedOrder.shipping_address?.address}, {selectedOrder.shipping_address?.city}, {selectedOrder.shipping_address?.country}</p>
+                {selectedOrder.shipping_address?.email && selectedOrder.shipping_address.email !== 'non renseigné' && (
+                  <p><strong>Email:</strong> {selectedOrder.shipping_address?.email}</p>
+                )}
               </div>
             </div>
             <div className="mt-4">
