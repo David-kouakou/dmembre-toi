@@ -1,11 +1,12 @@
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 
 const Profile = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const [showUid, setShowUid] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -25,6 +26,14 @@ const Profile = () => {
     return null;
   }
 
+  // Masquer une partie de l'UID
+  const hideUid = (uid) => {
+    if (!uid) return '';
+    const start = uid.substring(0, 6);
+    const end = uid.substring(uid.length - 4);
+    return `${start}...${end}`;
+  };
+
   return (
     <div className="pt-32 pb-20 bg-white min-h-screen">
       <div className="max-w-2xl mx-auto px-4">
@@ -43,8 +52,18 @@ const Profile = () => {
             <p className="text-lg font-medium">{user.email}</p>
           </div>
           <div className="border-b pb-3">
-            <p className="text-sm text-gray-500">UID</p>
-            <p className="text-sm font-mono text-gray-600 break-all">{user.uid}</p>
+            <p className="text-sm text-gray-500">Identifiant unique (UID)</p>
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-mono text-gray-600">
+                {showUid ? user.uid : hideUid(user.uid)}
+              </p>
+              <button
+                onClick={() => setShowUid(!showUid)}
+                className="text-xs text-red-500 hover:text-red-600"
+              >
+                {showUid ? 'Masquer' : 'Afficher'}
+              </button>
+            </div>
           </div>
           <div className="border-b pb-3">
             <p className="text-sm text-gray-500">Compte créé le</p>
