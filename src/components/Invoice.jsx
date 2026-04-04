@@ -15,9 +15,9 @@ export const generateInvoicePDF = (order) => {
   // Informations client
   doc.setFontSize(10);
   doc.text('Facturé à :', 20, 75);
-  doc.text(`${order.shipping_address?.full_name || order.shipping_address?.first_name || ''} ${order.shipping_address?.last_name || ''}`, 20, 85);
-  doc.text(`Tél: ${order.shipping_address?.phone || ''}`, 20, 95);
-  doc.text(`${order.shipping_address?.neighborhood || order.shipping_address?.address || ''}, ${order.shipping_address?.city || ''}`, 20, 105);
+  doc.text(order.shipping_address?.full_name || '', 20, 85);
+  doc.text(`Tél: ${order.shipping_address?.phone || 'Non renseigné'}`, 20, 95);
+  doc.text(`${order.shipping_address?.neighborhood || ''}, ${order.shipping_address?.city || ''}`, 20, 105);
   doc.text(order.shipping_address?.country || '', 20, 115);
   
   // Articles
@@ -33,6 +33,12 @@ export const generateInvoicePDF = (order) => {
     doc.text(`${Math.round(item.price * item.quantity).toLocaleString('fr-FR')} FCFA`, 150, y);
     y += 10;
   });
+  
+  // Sous-total
+  doc.text(`Sous-total: ${Math.round(order.subtotal || order.total - order.delivery_fee).toLocaleString('fr-FR')} FCFA`, 150, y + 5, { align: 'right' });
+  y += 10;
+  doc.text(`Livraison: ${Math.round(order.delivery_fee || 1500).toLocaleString('fr-FR')} FCFA`, 150, y + 5, { align: 'right' });
+  y += 10;
   
   // Total
   y += 10;

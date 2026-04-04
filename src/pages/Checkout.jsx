@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import { db } from '../lib/firebase';
 import { collection, addDoc } from 'firebase/firestore';
@@ -10,17 +11,34 @@ import { generateInvoicePDF } from '../components/Invoice';
 
 const Checkout = () => {
   const navigate = useNavigate();
+  const { user, userProfile, updateUserProfile } = useAuth();
   const { cart, totalPrice, clearCart } = useCart();
   const [isProcessing, setIsProcessing] = useState(false);
   const [formData, setFormData] = useState({
-    fullName: '',
-    phone: '',
-    city: '',
     neighborhood: '',
-    country: "Côte d'Ivoire",
-    email: ''
+    city: '',
+    country: "Côte d'Ivoire"
   });
 
+  // Redirection si non connecté
+  useEffect(() => {
+    if (!user) {
+      navigate('/login?redirect=/checkout');
+    }
+  }, [user, navigate]);
+
+  // Charger les informations du profil utilisateur
+  useEffect(() => {
+    if (userProfile) {
+      setFormData({
+        neighborhood: userProfile.neighborhood || '',
+        city: userProfile.city || '',
+        country: userProfile.country || "Côte d'Ivoire"
+      });
+    }
+  }, [userProfile]);
+
+  // Redirection si panier vide
   useEffect(() => {
     if (cart.length === 0) {
       navigate('/cart');
@@ -34,10 +52,19 @@ const Checkout = () => {
     });
   };
 
+  // Sauvegarder les informations de livraison dans le profil
+  const saveDeliveryInfo = async () => {
+    if (user) {
+      await updateUserProfile({
+        neighborhood: formData.neighborhood,
+        city: formData.city,
+        country: formData.country
+      });
+    }
+  };
+
   const handlePlaceOrder = async () => {
-    // Vérifier les champs obligatoires
-    const requiredFields = ['fullName', 'phone', 'city', 'neighborhood'];
-    const isValid = requiredFields.every(field => formData[field].trim() !== '');
+    const isValid = formData.neighborhood && formData.city;
     
     if (!isValid) {
       toast.error('Veuillez remplir tous les champs obligatoires');
@@ -46,6 +73,8 @@ const Checkout = () => {
 
     setIsProcessing(true);
     
+    const deliveryFee = 1500;
+    const totalWithDelivery = totalPrice + deliveryFee;
     const orderId = 'ORD-' + Date.now();
     
     const order = {
@@ -59,44 +88,42 @@ const Checkout = () => {
         color: item.selectedColor,
         image: item.images?.[0] || ''
       })),
-      total: totalPrice,
+      subtotal: totalPrice,
+      delivery_fee: deliveryFee,
+      total: totalWithDelivery,
       shipping_address: {
-        full_name: formData.fullName,
-        phone: formData.phone,
+        full_name: userProfile?.fullName || user?.displayName || '',
+        phone: userProfile?.phone || '',
+        email: user?.email || '',
         city: formData.city,
         neighborhood: formData.neighborhood,
-        country: formData.country,
-        email: formData.email || 'non renseigné'
+        country: formData.country
       },
+      user_id: user?.uid,
       payment_method: 'cash_on_delivery',
       status: 'pending',
       created_at: new Date().toISOString()
     };
     
     try {
+      // Sauvegarder les infos de livraison dans le profil
+      await saveDeliveryInfo();
+      
       // Sauvegarde dans Firestore
       await addDoc(collection(db, 'orders'), order);
       clearCart();
       
-      // Sauvegarder l'email pour le suivi
-      if (formData.email) {
-        localStorage.setItem('lastOrderEmail', formData.email);
-      }
-      
-      // Notifications de succès
       toast.success('✅ Commande validée avec succès !');
-      toast.success('📄 Génération de votre facture...');
+      toast.success(`📦 Frais de livraison: ${deliveryFee.toLocaleString('fr-FR')} FCFA`);
       
-      // Générer la facture PDF après un court délai
       setTimeout(() => {
         generateInvoicePDF(order);
-        toast.success('📄 Facture générée avec succès !');
+        toast.success('📄 Facture générée !');
       }, 500);
       
-      // Rediriger vers la page de confirmation après 2 secondes
       setTimeout(() => {
-        navigate(`/confirmation?orderId=${orderId}&email=${encodeURIComponent(formData.email || '')}`);
-      }, 2500);
+        navigate(`/confirmation?orderId=${orderId}`);
+      }, 2000);
       
     } catch (error) {
       console.error('Erreur lors de la commande:', error);
@@ -106,8 +133,12 @@ const Checkout = () => {
     }
   };
 
-  const deliveryFee = 0;
+  const deliveryFee = 1500;
   const totalWithDelivery = totalPrice + deliveryFee;
+
+  if (!user) {
+    return null;
+  }
 
   if (cart.length === 0) {
     return null;
@@ -135,34 +166,26 @@ const Checkout = () => {
               animate={{ opacity: 1, x: 0 }}
               className="bg-white rounded-2xl p-6 shadow-sm"
             >
+              <div className="mb-6 pb-4 border-b">
+                <p className="text-gray-600">
+                  Bonjour <strong>{userProfile?.fullName || user?.displayName || user?.email}</strong>
+                </p>
+                <p className="text-sm text-gray-500">Vos informations seront sauvegardées pour vos prochaines commandes</p>
+              </div>
+              
               <h2 className="text-xl font-bold mb-6">Informations de livraison</h2>
               
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium mb-2">
-                    Nom complet <span className="text-red-500">*</span>
+                    Quartier <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
-                    name="fullName"
-                    value={formData.fullName}
+                    name="neighborhood"
+                    value={formData.neighborhood}
                     onChange={handleInputChange}
-                    placeholder="Jean Kouadio"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-                    required
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Téléphone <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="tel"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleInputChange}
-                    placeholder="XX XX XX XX XX"
+                    placeholder="Cocody, Plateau, Marcory..."
                     className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
                     required
                   />
@@ -184,21 +207,6 @@ const Checkout = () => {
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Quartier <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="neighborhood"
-                    value={formData.neighborhood}
-                    onChange={handleInputChange}
-                    placeholder="Cocody, Plateau, Marcory..."
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-                    required
-                  />
-                </div>
-                
-                <div>
                   <label className="block text-sm font-medium mb-2">Pays</label>
                   <select
                     name="country"
@@ -211,21 +219,6 @@ const Checkout = () => {
                     <option>Sénégal</option>
                     <option>Cameroun</option>
                   </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Email <span className="text-gray-400 text-xs font-normal">(facultatif - pour recevoir votre facture)</span>
-                  </label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    placeholder="votre@email.com"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-                  />
-                  <p className="text-xs text-gray-400 mt-1">Renseignez votre email pour recevoir votre facture</p>
                 </div>
               </div>
 
@@ -287,7 +280,7 @@ const Checkout = () => {
                 </div>
                 <div className="flex justify-between text-gray-600">
                   <span>Livraison</span>
-                  <span>Gratuite</span>
+                  <span>1 500 FCFA</span>
                 </div>
                 <div className="border-t pt-2 flex justify-between font-bold text-lg">
                   <span>Total</span>
