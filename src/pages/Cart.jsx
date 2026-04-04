@@ -6,8 +6,8 @@ import { TrashIcon, MinusIcon, PlusIcon } from '@heroicons/react/24/outline';
 const Cart = () => {
   const { cart, removeFromCart, updateQuantity, totalItems, totalPrice, clearCart } = useCart();
 
-  // Calcul des frais de livraison
-  const deliveryFee = totalPrice > 65000 ? 0 : 2000;
+  // Frais de livraison fixes à 1500 FCFA
+  const deliveryFee = 1500;
   const totalWithDelivery = totalPrice + deliveryFee;
 
   if (cart.length === 0) {
@@ -105,15 +105,8 @@ const Cart = () => {
                 </div>
                 <div className="flex justify-between text-gray-600">
                   <span>Livraison</span>
-                  <span className={deliveryFee === 0 ? 'text-green-600 font-medium' : ''}>
-                    {deliveryFee === 0 ? 'Gratuite' : `${deliveryFee.toLocaleString('fr-FR')} FCFA`}
-                  </span>
+                  <span>1 500 FCFA</span>
                 </div>
-                {deliveryFee > 0 && totalPrice < 65000 && (
-                  <p className="text-xs text-gray-400 text-right">
-                    Plus que {(65000 - totalPrice).toLocaleString('fr-FR')} FCFA pour la livraison gratuite
-                  </p>
-                )}
                 <div className="border-t pt-3 flex justify-between font-bold text-lg">
                   <span>Total</span>
                   <span className="text-red-500">{Math.round(totalWithDelivery).toLocaleString('fr-FR')} FCFA</span>

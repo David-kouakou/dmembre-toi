@@ -21,18 +21,27 @@ const Contact = () => {
     e.preventDefault();
     setSending(true);
     
-    // Simulation d'envoi (à remplacer par une vraie API plus tard)
+    // Sauvegarde dans localStorage
     setTimeout(() => {
-      console.log('Message reçu:', {
+      const messages = JSON.parse(localStorage.getItem('contact_messages') || '[]');
+      messages.push({
+        ...formData,
+        date: new Date().toISOString(),
+        status: 'non lu'
+      });
+      localStorage.setItem('contact_messages', JSON.stringify(messages));
+      
+      console.log('Message sauvegardé:', {
         name: formData.name,
         email: formData.email,
-        message: formData.message
+        message: formData.message,
+        date: new Date().toISOString()
       });
       
       toast.success('✅ Message envoyé avec succès !');
       setFormData({ name: '', email: '', message: '' });
       setSending(false);
-    }, 1000);
+    }, 500);
   };
 
   return (
