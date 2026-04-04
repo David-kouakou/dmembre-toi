@@ -21,13 +21,16 @@ const Register = () => {
     try {
       await signUp(email, password, fullName);
       toast.success('✅ Inscription réussie !');
-      setTimeout(() => navigate('/'), 1500);
+      setTimeout(() => navigate('/login'), 1500);
     } catch (err) {
+      console.error('Erreur inscription:', err);
       let message = 'Erreur lors de l\'inscription';
       if (err.code === 'auth/email-already-in-use') {
         message = 'Cet email est déjà utilisé';
       } else if (err.code === 'auth/weak-password') {
         message = 'Le mot de passe doit contenir au moins 6 caractères';
+      } else if (err.code === 'auth/invalid-email') {
+        message = 'Email invalide';
       }
       setError(message);
       toast.error(message);

@@ -52,17 +52,6 @@ const Checkout = () => {
     });
   };
 
-  // Sauvegarder les informations de livraison dans le profil
-  const saveDeliveryInfo = async () => {
-    if (user) {
-      await updateUserProfile({
-        neighborhood: formData.neighborhood,
-        city: formData.city,
-        country: formData.country
-      });
-    }
-  };
-
   const handlePlaceOrder = async () => {
     const isValid = formData.neighborhood && formData.city;
     
@@ -107,29 +96,32 @@ const Checkout = () => {
     
     try {
       // Sauvegarder les infos de livraison dans le profil
-      await saveDeliveryInfo();
+      if (user) {
+        await updateUserProfile({
+          neighborhood: formData.neighborhood,
+          city: formData.city,
+          country: formData.country
+        });
+      }
       
       // Sauvegarde dans Firestore
       await addDoc(collection(db, 'orders'), order);
       clearCart();
       
-      // Afficher les notifications
       toast.success('✅ Commande validée avec succès !');
       toast.success(`📦 Frais de livraison: ${deliveryFee.toLocaleString('fr-FR')} FCFA`);
       
-      // Générer la facture
       setTimeout(() => {
         generateInvoicePDF(order);
       }, 500);
       
-      // Rediriger vers l'accueil après 2 secondes
       setTimeout(() => {
         navigate('/');
         toast.success('🎉 Merci pour votre commande !');
       }, 2500);
       
     } catch (error) {
-      console.error('Erreur lors de la commande:', error);
+      console.error('Erreur:', error);
       toast.error('❌ Une erreur est survenue');
     } finally {
       setIsProcessing(false);

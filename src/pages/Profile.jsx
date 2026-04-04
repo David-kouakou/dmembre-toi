@@ -41,6 +41,7 @@ const Profile = () => {
       await updateUserProfile(formData);
       toast.success('✅ Profil mis à jour avec succès');
     } catch (error) {
+      console.error('Erreur:', error);
       toast.error('❌ Erreur lors de la mise à jour');
     } finally {
       setSaving(false);

@@ -9,9 +9,7 @@ import {
 } from 'firebase/auth';
 import { auth, googleProvider } from '../lib/firebase';
 import { db } from '../lib/firebase';
-import { doc, getDoc, setDoc, collection, getDocs } from 'firebase/firestore';
-import axios from 'axios';
-import { API_URL } from '../lib/api';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 const AuthContext = createContext();
 
@@ -22,56 +20,35 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [userProfile, setUserProfile] = useState(null);
-  const [allUsers, setAllUsers] = useState([]);
-
-  // Charger tous les utilisateurs (admin uniquement)
-  const fetchAllUsers = async () => {
-    if (isAdmin) {
-      try {
-        const querySnapshot = await getDocs(collection(db, 'users'));
-        const users = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        setAllUsers(users);
-      } catch (error) {
-        console.error('Erreur chargement utilisateurs:', error);
-      }
-    }
-  };
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setUser(user);
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setUser(firebaseUser);
       
-      if (user) {
-        // Charger le profil utilisateur depuis Firestore
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-        if (userDoc.exists()) {
-          setUserProfile(userDoc.data());
-        } else {
-          // Créer un profil par défaut
-          const defaultProfile = {
-            fullName: user.displayName || '',
-            email: user.email,
-            phone: '',
-            city: '',
-            neighborhood: '',
-            country: "Côte d'Ivoire",
-            createdAt: new Date().toISOString()
-          };
-          await setDoc(doc(db, 'users', user.uid), defaultProfile);
-          setUserProfile(defaultProfile);
-        }
-        
+      if (firebaseUser) {
         try {
-          const token = await user.getIdToken();
-          const response = await axios.post(`${API_URL}/auth/verify-token`, { token });
-          setIsAdmin(response.data.is_admin);
-          if (response.data.is_admin) {
-            fetchAllUsers();
+          const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+          if (userDoc.exists()) {
+            setUserProfile(userDoc.data());
+          } else {
+            const defaultProfile = {
+              fullName: firebaseUser.displayName || '',
+              email: firebaseUser.email,
+              phone: '',
+              city: '',
+              neighborhood: '',
+              country: "Côte d'Ivoire",
+              createdAt: new Date().toISOString()
+            };
+            await setDoc(doc(db, 'users', firebaseUser.uid), defaultProfile);
+            setUserProfile(defaultProfile);
           }
         } catch (error) {
-          console.error('Erreur vérification admin:', error);
-          setIsAdmin(false);
+          console.error('Erreur chargement profil:', error);
         }
+        
+        // Vérifier si admin (par email)
+        setIsAdmin(firebaseUser.email === 'admin@dmembre-toi.com');
       } else {
         setIsAdmin(false);
         setUserProfile(null);
@@ -82,13 +59,14 @@ export const AuthProvider = ({ children }) => {
     return unsubscribe;
   }, []);
 
-  const signIn = (email, password) => signInWithEmailAndPassword(auth, email, password);
+  const signIn = async (email, password) => {
+    return signInWithEmailAndPassword(auth, email, password);
+  };
   
   const signUp = async (email, password, fullName) => {
     const result = await createUserWithEmailAndPassword(auth, email, password);
     await updateProfile(result.user, { displayName: fullName });
     
-    // Créer le profil dans Firestore
     await setDoc(doc(db, 'users', result.user.uid), {
       fullName: fullName,
       email: email,
@@ -136,13 +114,11 @@ export const AuthProvider = ({ children }) => {
       loading, 
       isAdmin, 
       userProfile,
-      allUsers,
       signIn, 
       signUp, 
       signInWithGoogle, 
       logout,
-      updateUserProfile,
-      fetchAllUsers
+      updateUserProfile
     }}>
       {children}
     </AuthContext.Provider>
