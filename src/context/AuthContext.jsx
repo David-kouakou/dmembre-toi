@@ -9,7 +9,7 @@ import {
 } from 'firebase/auth';
 import { auth, googleProvider } from '../lib/firebase';
 import { db } from '../lib/firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, getDocs } from 'firebase/firestore';
 import axios from 'axios';
 import { API_URL } from '../lib/api';
 
@@ -22,6 +22,20 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [userProfile, setUserProfile] = useState(null);
+  const [allUsers, setAllUsers] = useState([]);
+
+  // Charger tous les utilisateurs (admin uniquement)
+  const fetchAllUsers = async () => {
+    if (isAdmin) {
+      try {
+        const querySnapshot = await getDocs(collection(db, 'users'));
+        const users = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setAllUsers(users);
+      } catch (error) {
+        console.error('Erreur chargement utilisateurs:', error);
+      }
+    }
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -51,6 +65,9 @@ export const AuthProvider = ({ children }) => {
           const token = await user.getIdToken();
           const response = await axios.post(`${API_URL}/auth/verify-token`, { token });
           setIsAdmin(response.data.is_admin);
+          if (response.data.is_admin) {
+            fetchAllUsers();
+          }
         } catch (error) {
           console.error('Erreur vérification admin:', error);
           setIsAdmin(false);
@@ -87,7 +104,6 @@ export const AuthProvider = ({ children }) => {
   
   const signInWithGoogle = async () => {
     const result = await signInWithPopup(auth, googleProvider);
-    // Vérifier si le profil existe
     const userDoc = await getDoc(doc(db, 'users', result.user.uid));
     if (!userDoc.exists()) {
       await setDoc(doc(db, 'users', result.user.uid), {
@@ -120,11 +136,13 @@ export const AuthProvider = ({ children }) => {
       loading, 
       isAdmin, 
       userProfile,
+      allUsers,
       signIn, 
       signUp, 
       signInWithGoogle, 
       logout,
-      updateUserProfile
+      updateUserProfile,
+      fetchAllUsers
     }}>
       {children}
     </AuthContext.Provider>

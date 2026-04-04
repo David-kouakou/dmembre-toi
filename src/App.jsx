@@ -12,6 +12,7 @@ import Register from './pages/Register'
 import Profile from './pages/Profile'
 import Orders from './pages/Orders'
 import Admin from './pages/Admin'
+import AdminUsers from './pages/AdminUsers'
 import About from './pages/About'
 import Contact from './pages/Contact'
 
@@ -32,6 +33,7 @@ function App() {
               <Route path="/profile" element={<Profile />} />
               <Route path="/orders" element={<Orders />} />
               <Route path="/admin" element={<Admin />} />
+              <Route path="/admin/users" element={<AdminUsers />} />
               <Route path="/about" element={<About />} />
               <Route path="/contact" element={<Contact />} />
             </Routes>

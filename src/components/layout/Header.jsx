@@ -1,4 +1,4 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import { useState, useRef, useEffect } from 'react';
@@ -50,7 +50,6 @@ const Header = () => {
           </nav>
           
           <div className="flex items-center gap-4">
-            {/* Bouton recherche */}
             <button onClick={() => setIsSearchOpen(true)} className="hover:text-red-500 transition">
               <MagnifyingGlassIcon className="w-6 h-6" />
             </button>
@@ -88,6 +87,11 @@ const Header = () => {
                     {isAdmin && (
                       <Link to="/admin" className="block px-4 py-2 hover:bg-gray-100" onClick={() => setIsProfileOpen(false)}>
                         Dashboard Admin
+                      </Link>
+                    )}
+                    {isAdmin && (
+                      <Link to="/admin/users" className="block px-4 py-2 hover:bg-gray-100" onClick={() => setIsProfileOpen(false)}>
+                        Utilisateurs
                       </Link>
                     )}
                     <button onClick={() => { logout(); setIsProfileOpen(false); }} className="block w-full text-left px-4 py-2 text-red-600 hover:bg-gray-100">
