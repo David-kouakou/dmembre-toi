@@ -1,8 +1,60 @@
 import { motion } from 'framer-motion';
+import { useState } from 'react';
+import axios from 'axios';
+import toast, { Toaster } from 'react-hot-toast';
 
 const Contact = () => {
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    message: ''
+  });
+  const [sending, setSending] = useState(false);
+
+  const handleChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSending(true);
+    
+    try {
+      // Utilisation de l'API MailJS (version gratuite)
+      const response = await axios.post('https://api.mailjs.com/v1/send', {
+        to: 'contact@dmembre-toi.com',
+        from: formData.email,
+        subject: `Message de ${formData.name} - DMEMBRE TOI`,
+        text: `
+          Nom: ${formData.name}
+          Email: ${formData.email}
+          Message: ${formData.message}
+        `,
+        html: `
+          <h3>Nouveau message du site DMEMBRE TOI</h3>
+          <p><strong>Nom:</strong> ${formData.name}</p>
+          <p><strong>Email:</strong> ${formData.email}</p>
+          <p><strong>Message:</strong></p>
+          <p>${formData.message.replace(/\n/g, '<br>')}</p>
+        `
+      });
+      
+      toast.success('✅ Message envoyé avec succès !');
+      setFormData({ name: '', email: '', message: '' });
+    } catch (error) {
+      console.error('Erreur envoi:', error);
+      toast.error('❌ Erreur lors de l\'envoi. Veuillez réessayer.');
+    } finally {
+      setSending(false);
+    }
+  };
+
   return (
     <div className="pt-32 pb-20 bg-white min-h-screen">
+      <Toaster position="top-center" />
       <div className="max-w-6xl mx-auto px-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -24,36 +76,52 @@ const Contact = () => {
             transition={{ delay: 0.2 }}
             className="bg-white border border-gray-100 rounded-2xl p-8 shadow-sm"
           >
-            <form className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-6">
               <div>
-                <label className="block text-sm font-medium mb-2 text-gray-700">Nom complet</label>
+                <label className="block text-sm font-medium mb-2 text-gray-700">Nom complet *</label>
                 <input 
-                  type="text" 
+                  type="text"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleChange}
+                  required
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
                   placeholder="Votre nom"
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium mb-2 text-gray-700">Email</label>
+                <label className="block text-sm font-medium mb-2 text-gray-700">Email *</label>
                 <input 
-                  type="email" 
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  required
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
                   placeholder="votre@email.com"
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium mb-2 text-gray-700">Message</label>
+                <label className="block text-sm font-medium mb-2 text-gray-700">Message *</label>
                 <textarea 
-                  rows={5} 
+                  name="message"
+                  value={formData.message}
+                  onChange={handleChange}
+                  rows={5}
+                  required
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
                   placeholder="Votre message..."
                 ></textarea>
               </div>
               
-              <button className="w-full bg-black text-white py-3 rounded-xl hover:bg-gray-800 transition-colors font-semibold">
-                Envoyer
+              <button 
+                type="submit"
+                disabled={sending}
+                className="w-full bg-black text-white py-3 rounded-xl hover:bg-gray-800 transition-colors font-semibold disabled:opacity-50"
+              >
+                {sending ? 'Envoi en cours...' : 'Envoyer'}
               </button>
             </form>
           </motion.div>

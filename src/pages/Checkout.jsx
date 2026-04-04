@@ -113,17 +113,20 @@ const Checkout = () => {
       await addDoc(collection(db, 'orders'), order);
       clearCart();
       
+      // Afficher les notifications
       toast.success('✅ Commande validée avec succès !');
       toast.success(`📦 Frais de livraison: ${deliveryFee.toLocaleString('fr-FR')} FCFA`);
       
+      // Générer la facture
       setTimeout(() => {
         generateInvoicePDF(order);
-        toast.success('📄 Facture générée !');
       }, 500);
       
+      // Rediriger vers l'accueil après 2 secondes
       setTimeout(() => {
-        navigate(`/confirmation?orderId=${orderId}`);
-      }, 2000);
+        navigate('/');
+        toast.success('🎉 Merci pour votre commande !');
+      }, 2500);
       
     } catch (error) {
       console.error('Erreur lors de la commande:', error);
