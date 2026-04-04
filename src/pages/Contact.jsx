@@ -1,6 +1,5 @@
 import { motion } from 'framer-motion';
 import { useState } from 'react';
-import axios from 'axios';
 import toast, { Toaster } from 'react-hot-toast';
 
 const Contact = () => {
@@ -22,34 +21,18 @@ const Contact = () => {
     e.preventDefault();
     setSending(true);
     
-    try {
-      // Utilisation de l'API MailJS (version gratuite)
-      const response = await axios.post('https://api.mailjs.com/v1/send', {
-        to: 'contact@dmembre-toi.com',
-        from: formData.email,
-        subject: `Message de ${formData.name} - DMEMBRE TOI`,
-        text: `
-          Nom: ${formData.name}
-          Email: ${formData.email}
-          Message: ${formData.message}
-        `,
-        html: `
-          <h3>Nouveau message du site DMEMBRE TOI</h3>
-          <p><strong>Nom:</strong> ${formData.name}</p>
-          <p><strong>Email:</strong> ${formData.email}</p>
-          <p><strong>Message:</strong></p>
-          <p>${formData.message.replace(/\n/g, '<br>')}</p>
-        `
+    // Simulation d'envoi (à remplacer par une vraie API plus tard)
+    setTimeout(() => {
+      console.log('Message reçu:', {
+        name: formData.name,
+        email: formData.email,
+        message: formData.message
       });
       
       toast.success('✅ Message envoyé avec succès !');
       setFormData({ name: '', email: '', message: '' });
-    } catch (error) {
-      console.error('Erreur envoi:', error);
-      toast.error('❌ Erreur lors de l\'envoi. Veuillez réessayer.');
-    } finally {
       setSending(false);
-    }
+    }, 1000);
   };
 
   return (
