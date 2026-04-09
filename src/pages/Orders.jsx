@@ -1,48 +1,42 @@
 import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { DocumentArrowDownIcon, EyeIcon } from '@heroicons/react/24/outline';
 import { generateInvoicePDF } from '../components/Invoice';
 import { db } from '../lib/firebase';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 
 const Orders = () => {
-  const [searchParams] = useSearchParams();
-  const emailParam = searchParams.get('email');
+  const { user, loading } = useAuth();
   const [orders, setOrders] = useState([]);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [loadingOrders, setLoadingOrders] = useState(true);
-  const [searchEmail, setSearchEmail] = useState('');
-  const [searched, setSearched] = useState(false);
 
-  const fetchOrders = async (email) => {
-    if (!email) return;
+  useEffect(() => {
+    const fetchOrders = async () => {
+      if (!user) return;
+      
+      try {
+        setLoadingOrders(true);
+        const q = query(
+          collection(db, 'orders'),
+          where('user_id', '==', user.uid),
+          orderBy('created_at', 'desc')
+        );
+        const querySnapshot = await getDocs(q);
+        const userOrders = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setOrders(userOrders);
+      } catch (error) {
+        console.error('Erreur:', error);
+      } finally {
+        setLoadingOrders(false);
+      }
+    };
     
-    try {
-      setLoadingOrders(true);
-      const q = query(
-        collection(db, 'orders'),
-        where('shipping_address.email', '==', email),
-        orderBy('created_at', 'desc')
-      );
-      const querySnapshot = await getDocs(q);
-      const userOrders = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setOrders(userOrders);
-      setSearched(true);
-    } catch (error) {
-      console.error('Erreur chargement commandes:', error);
-    } finally {
-      setLoadingOrders(false);
-    }
-  };
-
-  const handleSearch = (e) => {
-    e.preventDefault();
-    if (searchEmail) {
-      fetchOrders(searchEmail);
-    }
-  };
+    fetchOrders();
+  }, [user]);
 
   const getStatusLabel = (status) => {
     switch(status) {
@@ -50,7 +44,6 @@ const Orders = () => {
       case 'processing': return 'En traitement';
       case 'shipped': return 'Expédiée';
       case 'delivered': return 'Livrée';
-      case 'cancelled': return 'Annulée';
       default: return status;
     }
   };
@@ -61,63 +54,31 @@ const Orders = () => {
       case 'processing': return 'bg-blue-100 text-blue-700';
       case 'shipped': return 'bg-purple-100 text-purple-700';
       case 'delivered': return 'bg-green-100 text-green-700';
-      case 'cancelled': return 'bg-red-100 text-red-700';
       default: return 'bg-gray-100 text-gray-700';
     }
   };
 
-  useEffect(() => {
-    if (emailParam && emailParam !== 'null') {
-      setSearchEmail(emailParam);
-      fetchOrders(emailParam);
-    }
-  }, [emailParam]);
+  if (loading || loadingOrders) {
+    return <div className="pt-32 text-center">Chargement...</div>;
+  }
+
+  if (!user) return null;
 
   return (
     <div className="pt-32 pb-20 bg-gray-50 min-h-screen">
       <div className="max-w-6xl mx-auto px-4">
         <h1 className="text-3xl font-bold mb-8">Mes commandes</h1>
-        
-        <div className="bg-white rounded-2xl p-6 shadow-sm mb-8">
-          <p className="text-gray-600 mb-4">Entrez votre email pour retrouver vos commandes :</p>
-          <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-4">
-            <input
-              type="email"
-              placeholder="Votre email"
-              value={searchEmail}
-              onChange={(e) => setSearchEmail(e.target.value)}
-              className="flex-1 px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-              required
-            />
-            <button
-              type="submit"
-              className="bg-black text-white px-6 py-3 rounded-lg hover:bg-gray-800 transition-colors"
-            >
-              Voir mes commandes
-            </button>
-          </form>
-          <p className="text-xs text-gray-400 mt-2">Utilisez l'email que vous avez renseigné lors de votre commande</p>
-        </div>
 
-        {loadingOrders && searched && (
-          <div className="text-center py-12">
-            <div className="w-12 h-12 border-4 border-red-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-gray-500">Chargement...</p>
-          </div>
-        )}
-
-        {searched && !loadingOrders && orders.length === 0 && (
+        {orders.length === 0 ? (
           <div className="bg-white rounded-2xl p-12 text-center">
-            <p className="text-gray-500 text-lg mb-6">Aucune commande trouvée pour cet email</p>
+            <p className="text-gray-500 text-lg mb-6">Vous n'avez pas encore de commandes</p>
             <Link to="/shop">
               <button className="bg-black text-white px-8 py-3 rounded-full hover:bg-gray-800">
                 Découvrir nos produits
               </button>
             </Link>
           </div>
-        )}
-
-        {orders.length > 0 && (
+        ) : (
           <div className="space-y-4">
             {orders.map((order) => (
               <div key={order.id} className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow">
@@ -182,89 +143,44 @@ const Orders = () => {
         )}
       </div>
 
-      {/* Modal Détails de la commande */}
+      {/* Modal Détails */}
       {showDetailsModal && selectedOrder && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-start mb-4">
-                <h2 className="text-2xl font-bold">Détails de la commande</h2>
-                <button onClick={() => setShowDetailsModal(false)} className="text-gray-400 hover:text-gray-600">
-                  ✕
-                </button>
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6">
+            <div className="flex justify-between items-start mb-4">
+              <h2 className="text-2xl font-bold">Détails de la commande</h2>
+              <button onClick={() => setShowDetailsModal(false)} className="text-gray-400">✕</button>
+            </div>
+            <div className="grid grid-cols-2 gap-4 pb-4 border-b">
+              <div><p className="text-sm text-gray-500">N° commande</p><p className="font-mono text-sm">{selectedOrder.id}</p></div>
+              <div><p className="text-sm text-gray-500">Date</p><p>{new Date(selectedOrder.created_at).toLocaleString('fr-FR')}</p></div>
+              <div><p className="text-sm text-gray-500">Paiement</p><p>Paiement à la livraison</p></div>
+              <div><p className="text-sm text-gray-500">Statut</p><span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(selectedOrder.status)}`}>{getStatusLabel(selectedOrder.status)}</span></div>
+            </div>
+            <div className="mt-4">
+              <h3 className="font-semibold mb-2">Livraison</h3>
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <p><strong>Nom:</strong> {selectedOrder.shipping_address?.full_name}</p>
+                <p><strong>Téléphone:</strong> {selectedOrder.shipping_address?.phone}</p>
+                <p><strong>Adresse:</strong> {selectedOrder.shipping_address?.neighborhood}, {selectedOrder.shipping_address?.city}</p>
               </div>
-              
-              <div className="space-y-6">
-                <div className="grid grid-cols-2 gap-4 pb-4 border-b">
-                  <div>
-                    <p className="text-sm text-gray-500">N° commande</p>
-                    <p className="font-mono text-sm">{selectedOrder.id}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Date</p>
-                    <p>{new Date(selectedOrder.created_at).toLocaleString('fr-FR')}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Paiement</p>
-                    <p>Paiement à la livraison</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Statut</p>
-                    <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(selectedOrder.status)}`}>
-                      {getStatusLabel(selectedOrder.status)}
-                    </span>
-                  </div>
+            </div>
+            <div className="mt-4">
+              <h3 className="font-semibold mb-2">Articles</h3>
+              {selectedOrder.items.map((item, idx) => (
+                <div key={idx} className="flex justify-between border-b pb-2">
+                  <div><p>{item.name}</p><p className="text-sm text-gray-500">{item.color} / {item.size} x{item.quantity}</p></div>
+                  <p>{Math.round(item.price * item.quantity).toLocaleString('fr-FR')} FCFA</p>
                 </div>
-
-                <div>
-                  <h3 className="font-semibold mb-2">Informations de livraison</h3>
-                  <div className="bg-gray-50 rounded-lg p-4 space-y-1">
-                    <p><strong>Nom:</strong> {selectedOrder.shipping_address?.full_name}</p>
-                    <p><strong>Téléphone:</strong> {selectedOrder.shipping_address?.phone}</p>
-                    <p><strong>Adresse:</strong> {selectedOrder.shipping_address?.neighborhood}, {selectedOrder.shipping_address?.city}, {selectedOrder.shipping_address?.country}</p>
-                    {selectedOrder.shipping_address?.email && selectedOrder.shipping_address.email !== 'non renseigné' && (
-                      <p><strong>Email:</strong> {selectedOrder.shipping_address?.email}</p>
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="font-semibold mb-2">Articles commandés</h3>
-                  <div className="space-y-2">
-                    {selectedOrder.items.map((item, idx) => (
-                      <div key={idx} className="flex justify-between items-center border-b pb-2">
-                        <div>
-                          <p className="font-medium">{item.name}</p>
-                          <p className="text-sm text-gray-500">{item.color} / {item.size} x{item.quantity}</p>
-                        </div>
-                        <p className="font-semibold">{Math.round(item.price * item.quantity).toLocaleString('fr-FR')} FCFA</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="border-t pt-4">
-                  <div className="flex justify-between text-lg font-bold">
-                    <span>Total</span>
-                    <span className="text-red-500">{Math.round(selectedOrder.total).toLocaleString('fr-FR')} FCFA</span>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="flex gap-3 mt-6">
-                <button
-                  onClick={() => generateInvoicePDF(selectedOrder)}
-                  className="flex-1 bg-black text-white py-2 rounded-lg hover:bg-gray-800"
-                >
-                  Télécharger facture
-                </button>
-                <button
-                  onClick={() => setShowDetailsModal(false)}
-                  className="flex-1 border border-gray-300 py-2 rounded-lg hover:bg-gray-50"
-                >
-                  Fermer
-                </button>
-              </div>
+              ))}
+            </div>
+            <div className="border-t pt-4 flex justify-between font-bold">
+              <span>Total</span>
+              <span className="text-red-500">{Math.round(selectedOrder.total).toLocaleString('fr-FR')} FCFA</span>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button onClick={() => generateInvoicePDF(selectedOrder)} className="flex-1 bg-black text-white py-2 rounded-lg">Télécharger facture</button>
+              <button onClick={() => setShowDetailsModal(false)} className="flex-1 border py-2 rounded-lg">Fermer</button>
             </div>
           </div>
         </div>
