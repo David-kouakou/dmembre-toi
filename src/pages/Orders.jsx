@@ -62,14 +62,29 @@ const Orders = () => {
     return <div className="pt-32 text-center">Chargement...</div>;
   }
 
-  if (!user) return null;
+  if (!user) {
+    return (
+      <div className="pt-32 pb-20 bg-white min-h-screen">
+        <div className="max-w-4xl mx-auto px-4 text-center">
+          <h1 className="text-3xl font-bold mb-6">Mes commandes</h1>
+          <div className="bg-gray-50 rounded-2xl p-12">
+            <p className="text-gray-500 text-lg mb-4">Connectez-vous pour voir vos commandes</p>
+            <Link to="/login">
+              <button className="bg-black text-white px-8 py-3 rounded-full hover:bg-gray-800">
+                Se connecter
+              </button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-  return (
-    <div className="pt-32 pb-20 bg-gray-50 min-h-screen">
-      <div className="max-w-6xl mx-auto px-4">
-        <h1 className="text-3xl font-bold mb-8">Mes commandes</h1>
-
-        {orders.length === 0 ? (
+  if (orders.length === 0) {
+    return (
+      <div className="pt-32 pb-20 bg-gray-50 min-h-screen">
+        <div className="max-w-6xl mx-auto px-4">
+          <h1 className="text-3xl font-bold mb-8">Mes commandes</h1>
           <div className="bg-white rounded-2xl p-12 text-center">
             <p className="text-gray-500 text-lg mb-6">Vous n'avez pas encore de commandes</p>
             <Link to="/shop">
@@ -78,69 +93,77 @@ const Orders = () => {
               </button>
             </Link>
           </div>
-        ) : (
-          <div className="space-y-4">
-            {orders.map((order) => (
-              <div key={order.id} className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow">
-                <div className="flex flex-wrap justify-between items-start gap-4 mb-4">
-                  <div>
-                    <p className="text-sm text-gray-500">Commande du</p>
-                    <p className="font-medium">{new Date(order.created_at).toLocaleDateString('fr-FR')}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">N° commande</p>
-                    <p className="font-mono text-sm">{order.id}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Total</p>
-                    <p className="font-bold text-red-500">{Math.round(order.total).toLocaleString('fr-FR')} FCFA</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Statut</p>
-                    <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
-                      {getStatusLabel(order.status)}
-                    </span>
-                  </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="pt-32 pb-20 bg-gray-50 min-h-screen">
+      <div className="max-w-6xl mx-auto px-4">
+        <h1 className="text-3xl font-bold mb-8">Mes commandes</h1>
+
+        <div className="space-y-4">
+          {orders.map((order) => (
+            <div key={order.id} className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex flex-wrap justify-between items-start gap-4 mb-4">
+                <div>
+                  <p className="text-sm text-gray-500">Commande du</p>
+                  <p className="font-medium">{new Date(order.created_at).toLocaleDateString('fr-FR')}</p>
                 </div>
-                
-                <div className="border-t pt-4">
-                  <p className="text-sm font-medium mb-2">Articles :</p>
-                  <div className="space-y-1">
-                    {order.items.slice(0, 3).map((item, idx) => (
-                      <div key={idx} className="flex justify-between text-sm">
-                        <span>{item.name} x{item.quantity}</span>
-                        <span>{Math.round(item.price * item.quantity).toLocaleString('fr-FR')} FCFA</span>
-                      </div>
-                    ))}
-                    {order.items.length > 3 && (
-                      <p className="text-sm text-gray-500">+{order.items.length - 3} autre(s) article(s)</p>
-                    )}
-                  </div>
+                <div>
+                  <p className="text-sm text-gray-500">N° commande</p>
+                  <p className="font-mono text-sm">{order.id}</p>
                 </div>
-                
-                <div className="border-t pt-4 mt-4 flex justify-end gap-3">
-                  <button
-                    onClick={() => generateInvoicePDF(order)}
-                    className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 transition-colors"
-                  >
-                    <DocumentArrowDownIcon className="w-4 h-4" />
-                    Télécharger facture
-                  </button>
-                  <button
-                    onClick={() => {
-                      setSelectedOrder(order);
-                      setShowDetailsModal(true);
-                    }}
-                    className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 transition-colors"
-                  >
-                    <EyeIcon className="w-4 h-4" />
-                    Détails
-                  </button>
+                <div>
+                  <p className="text-sm text-gray-500">Total</p>
+                  <p className="font-bold text-red-500">{Math.round(order.total).toLocaleString('fr-FR')} FCFA</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Statut</p>
+                  <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
+                    {getStatusLabel(order.status)}
+                  </span>
                 </div>
               </div>
-            ))}
-          </div>
-        )}
+              
+              <div className="border-t pt-4">
+                <p className="text-sm font-medium mb-2">Articles :</p>
+                <div className="space-y-1">
+                  {order.items.slice(0, 3).map((item, idx) => (
+                    <div key={idx} className="flex justify-between text-sm">
+                      <span>{item.name} x{item.quantity}</span>
+                      <span>{Math.round(item.price * item.quantity).toLocaleString('fr-FR')} FCFA</span>
+                    </div>
+                  ))}
+                  {order.items.length > 3 && (
+                    <p className="text-sm text-gray-500">+{order.items.length - 3} autre(s) article(s)</p>
+                  )}
+                </div>
+              </div>
+              
+              <div className="border-t pt-4 mt-4 flex justify-end gap-3">
+                <button
+                  onClick={() => generateInvoicePDF(order)}
+                  className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 transition-colors"
+                >
+                  <DocumentArrowDownIcon className="w-4 h-4" />
+                  Télécharger facture
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedOrder(order);
+                    setShowDetailsModal(true);
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 transition-colors"
+                >
+                  <EyeIcon className="w-4 h-4" />
+                  Détails
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Modal Détails */}

@@ -109,10 +109,8 @@ const Checkout = () => {
       
       toast.success('✅ Commande validée avec succès !');
       
-      // Rediriger directement vers la facture
-      setTimeout(() => {
-        generateInvoiceAndRedirect(order, navigate);
-      }, 500);
+      // Générer la facture et rediriger vers la page des commandes
+      generateInvoiceAndRedirect(order, navigate);
       
     } catch (error) {
       console.error('Erreur:', error);
