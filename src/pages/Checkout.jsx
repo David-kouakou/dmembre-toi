@@ -65,6 +65,13 @@ const Checkout = () => {
     const totalWithDelivery = totalPrice + deliveryFee;
     const orderId = 'ORD-' + Date.now();
     
+    // Vérifier que user et user.uid existent
+    if (!user || !user.uid) {
+      toast.error('Erreur: Vous devez être connecté');
+      setIsProcessing(false);
+      return;
+    }
+    
     const order = {
       id: orderId,
       items: cart.map(item => ({
@@ -87,12 +94,14 @@ const Checkout = () => {
         neighborhood: formData.neighborhood,
         country: formData.country
       },
-      user_id: user?.uid,
-      user_email: user?.email,
+      user_id: user.uid,  // Important: l'UID de l'utilisateur connecté
+      user_email: user.email,
       payment_method: 'cash_on_delivery',
       status: 'pending',
       created_at: new Date().toISOString()
     };
+    
+    console.log('Commande créée avec user_id:', user.uid); // Debug
     
     try {
       if (user) {
@@ -104,16 +113,18 @@ const Checkout = () => {
         });
       }
       
-      await addDoc(collection(db, 'orders'), order);
+      const docRef = await addDoc(collection(db, 'orders'), order);
+      console.log('Commande sauvegardée avec ID:', docRef.id); // Debug
+      
       clearCart();
       
       toast.success('✅ Commande validée avec succès !');
       
-      // Générer la facture et rediriger vers la page des commandes
+      // Générer la facture et rediriger
       generateInvoiceAndRedirect(order, navigate);
       
     } catch (error) {
-      console.error('Erreur:', error);
+      console.error('Erreur détaillée:', error);
       toast.error('❌ Une erreur est survenue');
     } finally {
       setIsProcessing(false);

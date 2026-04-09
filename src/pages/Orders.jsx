@@ -16,20 +16,55 @@ const Orders = () => {
 
   useEffect(() => {
     const fetchOrders = async () => {
-      if (!user) return;
+      if (!user) {
+        setLoadingOrders(false);
+        return;
+      }
+      
+      console.log('Récupération des commandes pour user_id:', user.uid);
+      console.log('Email utilisateur:', user.email);
       
       try {
         setLoadingOrders(true);
-        const q = query(
+        
+        // Essayer de trouver par user_id d'abord
+        let q = query(
           collection(db, 'orders'),
           where('user_id', '==', user.uid),
           orderBy('created_at', 'desc')
         );
-        const querySnapshot = await getDocs(q);
-        const userOrders = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        let querySnapshot = await getDocs(q);
+        let userOrders = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        // Si aucune commande trouvée, essayer par email
+        if (userOrders.length === 0 && user.email) {
+          console.log('Aucune commande avec user_id, recherche par email:', user.email);
+          q = query(
+            collection(db, 'orders'),
+            where('user_email', '==', user.email),
+            orderBy('created_at', 'desc')
+          );
+          querySnapshot = await getDocs(q);
+          userOrders = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        }
+        
+        // Si toujours aucune commande, chercher dans shipping_address.email
+        if (userOrders.length === 0 && user.email) {
+          console.log('Recherche par shipping_address.email:', user.email);
+          // Note: Cette requête nécessite un index composite dans Firebase
+          const allOrdersSnapshot = await getDocs(collection(db, 'orders'));
+          userOrders = allOrdersSnapshot.docs
+            .map(doc => ({ id: doc.id, ...doc.data() }))
+            .filter(order => order.shipping_address?.email === user.email)
+            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        }
+        
+        console.log(`${userOrders.length} commandes trouvées`);
         setOrders(userOrders);
+        
       } catch (error) {
-        console.error('Erreur:', error);
+        console.error('Erreur détaillée:', error);
       } finally {
         setLoadingOrders(false);
       }
