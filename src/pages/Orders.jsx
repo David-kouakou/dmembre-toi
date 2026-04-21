@@ -21,50 +21,20 @@ const Orders = () => {
         return;
       }
       
-      console.log('Récupération des commandes pour user_id:', user.uid);
-      console.log('Email utilisateur:', user.email);
-      
       try {
         setLoadingOrders(true);
-        
-        // Essayer de trouver par user_id d'abord
-        let q = query(
+        // Requête avec tri (maintenant que l'index va être créé)
+        const q = query(
           collection(db, 'orders'),
           where('user_id', '==', user.uid),
           orderBy('created_at', 'desc')
         );
-        
-        let querySnapshot = await getDocs(q);
-        let userOrders = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        
-        // Si aucune commande trouvée, essayer par email
-        if (userOrders.length === 0 && user.email) {
-          console.log('Aucune commande avec user_id, recherche par email:', user.email);
-          q = query(
-            collection(db, 'orders'),
-            where('user_email', '==', user.email),
-            orderBy('created_at', 'desc')
-          );
-          querySnapshot = await getDocs(q);
-          userOrders = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        }
-        
-        // Si toujours aucune commande, chercher dans shipping_address.email
-        if (userOrders.length === 0 && user.email) {
-          console.log('Recherche par shipping_address.email:', user.email);
-          // Note: Cette requête nécessite un index composite dans Firebase
-          const allOrdersSnapshot = await getDocs(collection(db, 'orders'));
-          userOrders = allOrdersSnapshot.docs
-            .map(doc => ({ id: doc.id, ...doc.data() }))
-            .filter(order => order.shipping_address?.email === user.email)
-            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-        }
-        
-        console.log(`${userOrders.length} commandes trouvées`);
+        const querySnapshot = await getDocs(q);
+        const userOrders = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setOrders(userOrders);
-        
       } catch (error) {
-        console.error('Erreur détaillée:', error);
+        console.error('Erreur:', error);
+        setOrders([]);
       } finally {
         setLoadingOrders(false);
       }
