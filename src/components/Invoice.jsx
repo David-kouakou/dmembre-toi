@@ -47,3 +47,11 @@ export const generateInvoicePDF = (order) => {
   const pdfUrl = URL.createObjectURL(pdfBlob);
   window.open(pdfUrl, '_blank');
 };
+
+// Ajoute cette fonction
+export const generateInvoiceAndRedirect = (order, navigate) => {
+  generateInvoicePDF(order);
+  setTimeout(() => {
+    navigate('/orders');
+  }, 2000);
+};
