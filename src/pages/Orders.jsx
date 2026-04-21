@@ -23,7 +23,6 @@ const Orders = () => {
       
       try {
         setLoadingOrders(true);
-        // Requête avec tri (maintenant que l'index va être créé)
         const q = query(
           collection(db, 'orders'),
           where('user_id', '==', user.uid),
