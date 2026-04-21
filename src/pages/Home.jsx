@@ -25,7 +25,6 @@ const Home = () => {
 
   return (
     <div>
-      {/* Hero Section avec carrousel */}
       <div 
         className="min-h-screen bg-cover bg-center bg-no-repeat relative transition-all duration-1000"
         style={{ backgroundImage: `url('${images[currentImage]}')` }}
@@ -57,7 +56,6 @@ const Home = () => {
             </Link>
           </motion.div>
           
-          {/* Indicateurs */}
           <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 flex gap-2">
             {images.map((_, index) => (
               <button
@@ -70,7 +68,6 @@ const Home = () => {
         </div>
       </div>
 
-      {/* Section Catégories */}
       <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4">
           <div className="text-center mb-12">
@@ -104,7 +101,6 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Section Confort */}
       <section className="py-20 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4">
           <div className="grid md:grid-cols-2 gap-12 items-center">
@@ -146,7 +142,6 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Newsletter */}
       <section className="py-20 bg-black text-white">
         <div className="max-w-7xl mx-auto px-4 text-center">
           <h2 className="text-3xl md:text-4xl font-bold mb-4">Rejoins la communauté</h2>

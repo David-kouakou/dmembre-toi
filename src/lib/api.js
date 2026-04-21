@@ -1,6 +1,5 @@
 import axios from 'axios';
 
-// Production URL
 const API_URL = 'https://dmembre-toi-backend-api.onrender.com/api/v1';
 
 export const api = axios.create({
@@ -8,11 +7,10 @@ export const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 15000, // 15 secondes maximum
 });
 
 export const productApi = {
-  getAll: (params) => api.get('/products', { params: { limit: 50, ...params } }),
+  getAll: (params) => api.get('/products', { params }),
   getById: (id) => api.get(`/products/${id}`),
   create: (data) => api.post('/products', data),
   update: (id, data) => api.put(`/products/${id}`, data),
