@@ -2,20 +2,12 @@ import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { productApi } from '../lib/api';
-import { cache } from '../lib/cache';
-import PageLoader from '../components/ui/PageLoader';
 
 const ProductCard = ({ product }) => {
   const [selectedSize, setSelectedSize] = useState(product.sizes?.[0] || '');
   const [selectedColor, setSelectedColor] = useState(product.colors?.[0] || '');
   const [showMessage, setShowMessage] = useState(false);
   const { addToCart } = useCart();
-
-  const handleAddToCart = () => {
-    addToCart(product, selectedSize, selectedColor);
-    setShowMessage(true);
-    setTimeout(() => setShowMessage(false), 2000);
-  };
 
   const getColorClass = (color) => {
     const colors = {
@@ -29,6 +21,12 @@ const ProductCard = ({ product }) => {
     return colors[color] || 'bg-gray-400';
   };
 
+  const handleAddToCart = () => {
+    addToCart(product, selectedSize, selectedColor);
+    setShowMessage(true);
+    setTimeout(() => setShowMessage(false), 2000);
+  };
+
   return (
     <div className="group relative">
       <Link to={`/product/${product.id}`}>
@@ -38,7 +36,6 @@ const ProductCard = ({ product }) => {
               src={product.images[0]} 
               alt={product.name} 
               className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
-              loading="lazy"
             />
           ) : (
             <div className="w-full h-full bg-gray-200 flex items-center justify-center">
@@ -65,10 +62,9 @@ const ProductCard = ({ product }) => {
         </div>
         <button 
           onClick={handleAddToCart} 
-          disabled={product.stock === 0}
-          className={`w-full py-1 rounded-lg text-sm transition-colors ${product.stock === 0 ? 'bg-gray-300 cursor-not-allowed' : 'bg-black text-white hover:bg-gray-800'}`}
+          className="w-full bg-black text-white py-1 rounded-lg text-sm hover:bg-gray-800"
         >
-          {product.stock === 0 ? 'Rupture' : 'Ajouter'}
+          Ajouter
         </button>
       </div>
       {showMessage && <div className="absolute top-0 left-0 right-0 bg-green-500 text-white text-xs text-center py-1 rounded-t-xl">Ajouté !</div>}
@@ -85,17 +81,9 @@ const Shop = () => {
 
   useEffect(() => {
     const fetchProducts = async () => {
-      const cachedProducts = cache.get('products');
-      if (cachedProducts) {
-        setProducts(cachedProducts);
-        setLoading(false);
-        return;
-      }
-      
       try {
-        const response = await productApi.getAll({ limit: 50 });
+        const response = await productApi.getAll();
         setProducts(response.data);
-        cache.set('products', response.data);
       } catch (err) {
         console.error(err);
       } finally {
@@ -124,7 +112,7 @@ const Shop = () => {
   }
 
   if (loading) {
-    return <PageLoader />;
+    return <div className="pt-32 min-h-screen flex items-center justify-center">Chargement...</div>;
   }
 
   return (
@@ -140,7 +128,7 @@ const Shop = () => {
         {!searchQuery && (
           <div className="flex gap-2 mb-8 overflow-x-auto pb-2">
             {categories.map(cat => (
-              <button key={cat.id} onClick={() => setSelectedCategory(cat.id)} className={`px-4 py-1 rounded-full text-sm whitespace-nowrap transition-colors ${selectedCategory === cat.id ? 'bg-black text-white' : 'bg-gray-100 hover:bg-gray-200'}`}>
+              <button key={cat.id} onClick={() => setSelectedCategory(cat.id)} className={`px-4 py-1 rounded-full text-sm whitespace-nowrap ${selectedCategory === cat.id ? 'bg-black text-white' : 'bg-gray-100'}`}>
                 {cat.name}
               </button>
             ))}
