@@ -33,7 +33,7 @@ export const generateInvoicePDF = (order) => {
   
   doc.text(`Sous-total: ${Math.round(order.subtotal).toLocaleString('fr-FR')} FCFA`, 150, y + 5, { align: 'right' });
   y += 10;
-  doc.text(`Livraison: ${Math.round(order.delivery_fee).toLocaleString('fr-FR')} FCFA`, 150, y + 5, { align: 'right' });
+  doc.text(`Livraison: ${Math.round(order.delivery_fee || 1500).toLocaleString('fr-FR')} FCFA`, 150, y + 5, { align: 'right' });
   y += 10;
   
   doc.setFontSize(12);
@@ -46,11 +46,4 @@ export const generateInvoicePDF = (order) => {
   const pdfBlob = doc.output('blob');
   const pdfUrl = URL.createObjectURL(pdfBlob);
   window.open(pdfUrl, '_blank');
-};
-
-export const generateInvoiceAndRedirect = (order, navigate) => {
-  generateInvoicePDF(order);
-  setTimeout(() => {
-    navigate('/');
-  }, 1000);
 };

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { productApi } from '../lib/api';
+import { cache } from '../lib/cache';
 
 const ProductCard = ({ product }) => {
   const [selectedSize, setSelectedSize] = useState(product.sizes?.[0] || '');
@@ -32,7 +33,12 @@ const ProductCard = ({ product }) => {
       <Link to={`/product/${product.id}`}>
         <div className="bg-gray-100 rounded-xl overflow-hidden aspect-square">
           {product.images && product.images[0] ? (
-            <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition" />
+            <img 
+              src={product.images[0]} 
+              alt={product.name} 
+              className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+              loading="lazy"
+            />
           ) : (
             <div className="w-full h-full bg-gray-200 flex items-center justify-center">
               <span className="text-gray-400 text-sm">Image</span>
@@ -42,22 +48,6 @@ const ProductCard = ({ product }) => {
         <h3 className="font-medium mt-2 line-clamp-1">{product.name}</h3>
         <p className="text-red-500 font-bold">{Math.round(product.price).toLocaleString('fr-FR')} FCFA</p>
       </Link>
-      
-      {/* Indicateur de stock */}
-      {product.stock <= 10 && product.stock > 0 && (
-        <div className="mt-1">
-          <span className="text-xs text-orange-500 bg-orange-50 px-2 py-0.5 rounded-full">
-            ⚡ Plus que {product.stock} exemplaires
-          </span>
-        </div>
-      )}
-      {product.stock === 0 && (
-        <div className="mt-1">
-          <span className="text-xs text-red-500 bg-red-50 px-2 py-0.5 rounded-full">
-            ❌ Rupture de stock
-          </span>
-        </div>
-      )}
       
       <div className="mt-2">
         <div className="flex gap-1 mb-2">
@@ -77,7 +67,7 @@ const ProductCard = ({ product }) => {
           disabled={product.stock === 0}
           className={`w-full py-1 rounded-lg text-sm transition-colors ${product.stock === 0 ? 'bg-gray-300 cursor-not-allowed' : 'bg-black text-white hover:bg-gray-800'}`}
         >
-          {product.stock === 0 ? 'Rupture de stock' : 'Ajouter au panier'}
+          {product.stock === 0 ? 'Rupture' : 'Ajouter'}
         </button>
       </div>
       {showMessage && <div className="absolute top-0 left-0 right-0 bg-green-500 text-white text-xs text-center py-1 rounded-t-xl">Ajouté !</div>}
@@ -94,9 +84,17 @@ const Shop = () => {
 
   useEffect(() => {
     const fetchProducts = async () => {
+      const cachedProducts = cache.get('products');
+      if (cachedProducts) {
+        setProducts(cachedProducts);
+        setLoading(false);
+        return;
+      }
+      
       try {
         const response = await productApi.getAll({ limit: 50 });
         setProducts(response.data);
+        cache.set('products', response.data);
       } catch (err) {
         console.error(err);
       } finally {
@@ -125,7 +123,11 @@ const Shop = () => {
   }
 
   if (loading) {
-    return <div className="pt-32 text-center">Chargement des produits...</div>;
+    return (
+      <div className="pt-32 min-h-screen flex items-center justify-center">
+        <div className="w-10 h-10 border-4 border-red-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
   }
 
   return (
@@ -135,13 +137,13 @@ const Shop = () => {
           {searchQuery ? `Résultats pour "${searchQuery}"` : 'Notre collection'}
         </h1>
         <p className="text-gray-600 mb-6">
-          {searchQuery ? `${filteredProducts.length} produit(s) trouvé(s)` : 'Des pièces sans manches pour rester stylé sans avoir chaud'}
+          {searchQuery ? `${filteredProducts.length} produit(s) trouvé(s)` : 'Des pièces sans manches pour rester stylé'}
         </p>
         
         {!searchQuery && (
           <div className="flex gap-2 mb-8 overflow-x-auto pb-2">
             {categories.map(cat => (
-              <button key={cat.id} onClick={() => setSelectedCategory(cat.id)} className={`px-4 py-1 rounded-full text-sm ${selectedCategory === cat.id ? 'bg-black text-white' : 'bg-gray-100'}`}>
+              <button key={cat.id} onClick={() => setSelectedCategory(cat.id)} className={`px-4 py-1 rounded-full text-sm whitespace-nowrap transition-colors ${selectedCategory === cat.id ? 'bg-black text-white' : 'bg-gray-100 hover:bg-gray-200'}`}>
                 {cat.name}
               </button>
             ))}
@@ -150,13 +152,13 @@ const Shop = () => {
         
         {filteredProducts.length === 0 ? (
           <div className="text-center py-12">
-            <p className="text-gray-500 mb-4">Aucun produit trouvé pour "{searchQuery}"</p>
-            <Link to="/shop" className="bg-black text-white px-6 py-2 rounded-full text-sm hover:bg-gray-800">
+            <p className="text-gray-500 mb-4">Aucun produit trouvé</p>
+            <Link to="/shop" className="bg-black text-white px-6 py-2 rounded-full text-sm hover:bg-gray-800 inline-block">
               Voir tous les produits
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
             {filteredProducts.map(product => (
               <ProductCard key={product.id} product={product} />
             ))}
