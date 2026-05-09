@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 const Home = () => {
   return (
     <div>
-      {/* Hero Section avec image de fond */}
+      {/* Hero Section */}
       <div 
         className="min-h-screen bg-cover bg-center bg-no-repeat relative"
         style={{ backgroundImage: "url('/images/hero-bg.png')" }}
@@ -42,32 +42,15 @@ const Home = () => {
         </div>
       </div>
 
-      {/* Section "Collection bientôt disponible" */}
+      {/* Collection à venir */}
       <section className="py-20 bg-white">
         <div className="max-w-4xl mx-auto px-4 text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            viewport={{ once: true }}
-          >
-            <h2 className="text-4xl md:text-5xl font-bold mb-6">
-              Nouvelle Collection
-            </h2>
-            <div className="w-24 h-1 bg-red-500 mx-auto mb-8"></div>
-            <p className="text-xl md:text-2xl text-gray-600 mb-4">
-              🔜 Bientôt disponible
-            </p>
-            <p className="text-gray-500 max-w-lg mx-auto">
-              Préparez-vous à découvrir nos nouvelles pièces. Une collection unique arrive très prochainement.
-            </p>
-            <div className="mt-8">
-              <div className="inline-flex items-center gap-2 text-gray-400">
-                <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-                <span className="text-sm">Inscrivez-vous à la newsletter pour être informé</span>
-              </div>
-            </div>
-          </motion.div>
+          <h2 className="text-4xl md:text-5xl font-bold mb-6">Nouvelle Collection</h2>
+          <div className="w-24 h-1 bg-red-500 mx-auto mb-8"></div>
+          <p className="text-xl md:text-2xl text-gray-600 mb-4">🔜 Bientôt disponible</p>
+          <p className="text-gray-500 max-w-lg mx-auto">
+            Préparez-vous à découvrir nos nouvelles pièces. Une collection unique arrive très prochainement.
+          </p>
         </div>
       </section>
 
